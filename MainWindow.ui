@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>724</width>
-    <height>490</height>
+    <width>776</width>
+    <height>503</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -22,6 +22,150 @@
       </item>
       <item>
        <widget class="PlotWidget" name="gSignal"/>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <layout class="QGridLayout" name="gridLayout_2">
+      <item row="1" column="8">
+       <widget class="QFNumberEdit" name="tPmBgEn">
+        <property name="text">
+         <string>0</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="10">
+       <widget class="QFNumberEdit" name="tPmSgEn">
+        <property name="text">
+         <string>0</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="4">
+       <widget class="QFNumberEdit" name="tPyFpEn">
+        <property name="text">
+         <string>0</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="7">
+       <widget class="QLabel" name="label_10">
+        <property name="text">
+         <string>PMT BG End</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="5">
+       <widget class="QLabel" name="label_9">
+        <property name="text">
+         <string>Pyro CD End</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="2">
+       <widget class="QFNumberEdit" name="tPyBgSt">
+        <property name="text">
+         <string>0</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="4">
+       <widget class="QFNumberEdit" name="tPyFpSt">
+        <property name="text">
+         <string>0</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="8">
+       <widget class="QFNumberEdit" name="tPmBgSt">
+        <property name="text">
+         <string>0</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="6">
+       <widget class="QFNumberEdit" name="tPyCdEn">
+        <property name="text">
+         <string>0</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="9">
+       <widget class="QLabel" name="label_11">
+        <property name="text">
+         <string>PMT Sig En</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QLabel" name="label_2">
+        <property name="text">
+         <string>Pyro BG Start</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="10">
+       <widget class="QFNumberEdit" name="tPmSgSt">
+        <property name="text">
+         <string>0</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="6">
+       <widget class="QFNumberEdit" name="tPyCdSt">
+        <property name="text">
+         <string>0</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="2">
+       <widget class="QFNumberEdit" name="tPyBgEn">
+        <property name="text">
+         <string>0</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="7">
+       <widget class="QLabel" name="label_5">
+        <property name="text">
+         <string>PMT BG Start</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="5">
+       <widget class="QLabel" name="label_4">
+        <property name="text">
+         <string>Pyro CD Start</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="3">
+       <widget class="QLabel" name="label_8">
+        <property name="text">
+         <string>Pyro FP End</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="3">
+       <widget class="QLabel" name="label_3">
+        <property name="text">
+         <string>Pyro FP Start</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="9">
+       <widget class="QLabel" name="label_6">
+        <property name="text">
+         <string>PMT Sig Start</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QLabel" name="label_7">
+        <property name="text">
+         <string>Pyro BG End</string>
+        </property>
+       </widget>
       </item>
      </layout>
     </item>
@@ -87,6 +231,13 @@
           </property>
          </widget>
         </item>
+        <item row="1" column="0">
+         <widget class="QPushButton" name="bSaveWaveforms">
+          <property name="text">
+           <string>Save Waveforms</string>
+          </property>
+         </widget>
+        </item>
        </layout>
       </item>
      </layout>
@@ -98,7 +249,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>724</width>
+     <width>776</width>
      <height>21</height>
     </rect>
    </property>
@@ -106,20 +257,42 @@
     <property name="title">
      <string>File</string>
     </property>
-    <addaction name="actionSettings"/>
-    <addaction name="actionExit"/>
+    <addaction name="mFileSettings"/>
+    <addaction name="mFileExit"/>
+   </widget>
+   <widget class="QMenu" name="menuSPEX">
+    <property name="title">
+     <string>SPEX</string>
+    </property>
+    <addaction name="mSpexOpen"/>
    </widget>
    <addaction name="menuFile"/>
+   <addaction name="menuSPEX"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
-  <action name="actionSettings">
+  <action name="mFileSettings">
    <property name="text">
     <string>Settings</string>
    </property>
   </action>
-  <action name="actionExit">
+  <action name="mFileExit">
    <property name="text">
     <string>Exit</string>
+   </property>
+  </action>
+  <action name="actionInitialize">
+   <property name="text">
+    <string>Initialize...</string>
+   </property>
+  </action>
+  <action name="actionGoto_Wavenumber">
+   <property name="text">
+    <string>Goto Wavenumber...</string>
+   </property>
+  </action>
+  <action name="mSpexOpen">
+   <property name="text">
+    <string>Open SPEX Settings</string>
    </property>
   </action>
  </widget>
@@ -129,7 +302,32 @@
    <extends>QGraphicsView</extends>
    <header>pyqtgraph</header>
   </customwidget>
+  <customwidget>
+   <class>QFNumberEdit</class>
+   <extends>QLineEdit</extends>
+   <header>customQt</header>
+  </customwidget>
  </customwidgets>
+ <tabstops>
+  <tabstop>tPyBgSt</tabstop>
+  <tabstop>tPyBgEn</tabstop>
+  <tabstop>tPyFpSt</tabstop>
+  <tabstop>tPyFpEn</tabstop>
+  <tabstop>tPyCdSt</tabstop>
+  <tabstop>tPyCdEn</tabstop>
+  <tabstop>tPmBgSt</tabstop>
+  <tabstop>tPmBgEn</tabstop>
+  <tabstop>tPmSgSt</tabstop>
+  <tabstop>tPmSgEn</tabstop>
+  <tabstop>tSaveName</tabstop>
+  <tabstop>bChooseDirectory</tabstop>
+  <tabstop>bPause</tabstop>
+  <tabstop>bStart</tabstop>
+  <tabstop>bSaveWaveforms</tabstop>
+  <tabstop>bAbort</tabstop>
+  <tabstop>gPyro</tabstop>
+  <tabstop>gSignal</tabstop>
+ </tabstops>
  <resources/>
  <connections/>
 </ui>
