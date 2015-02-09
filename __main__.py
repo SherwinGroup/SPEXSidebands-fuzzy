@@ -1,24 +1,23 @@
 # -*- coding: utf-8 -*-
 """
 Created on Tue Feb 03 12:53:22 2015
-
 @author: dvalovcin
 """
 
 import numpy as np
 import scipy.integrate as spi
 from PyQt4 import QtGui, QtCore
-from customQt import QFNumberEdit
-from MainWindow_ui import Ui_MainWindow
-from Settings_ui import Ui_Dialog
 import threading
 import time
 import copy
+import sys, os
 try:
     from Instruments import SPEX, Agilent6000
-except:
+except Exception as e:
     raise IOError('Instrument library not found. Often placed in another directory')
 from SPEXWin import SPEXWin
+from MainWindow_ui import Ui_MainWindow
+from Settings_ui import Ui_Dialog
 import pyqtgraph as pg
 pg.setConfigOption('background', 'w')
 pg.setConfigOption('foreground', 'k')
@@ -277,8 +276,8 @@ class MainWin(QtGui.QMainWindow):
         #Just being paranoid, no reason to think it wouldn't find the proper thing
         if sendidx<0:
             return
-        self.linearRegionTextBoxes[i][0].setText('{:.3g}'.format(sender.getRegion()[0]))
-        self.linearRegionTextBoxes[i][1].setText('{:.3g}'.format(sender.getRegion()[1]))
+        self.linearRegionTextBoxes[i][0].setText('{:.9g}'.format(sender.getRegion()[0]))
+        self.linearRegionTextBoxes[i][1].setText('{:.9g}'.format(sender.getRegion()[1]))
             
     def updateLinearRegionsFromText(self):
         sender = self.sender()
@@ -336,6 +335,10 @@ class MainWin(QtGui.QMainWindow):
     def openAgi(self):
         #Stop collection if it's happening
         self.settings['collectingScope'] = False
+        isPaused = not self.settings['notPaused']
+        print 'isPaused', isPaused
+        if isPaused:
+            self.togglePause(False)
         try: 
             self.scopeCollectionThread.join()
         except:
@@ -354,6 +357,8 @@ class MainWin(QtGui.QMainWindow):
             
         self.scopeCollectionThread = threading.Thread(target = self.collectScopeLoop)
         self.scopeCollectionThread.start()
+        if isPaused:
+            self.togglePause(True)
 
     def startScan(self):
         if self.settings['NIRP'] == '-1':
@@ -431,6 +436,8 @@ class MainWin(QtGui.QMainWindow):
         self.tbcPMSG.setText('PmSG Box: ' + v3)
         
     def togglePause(self, val):
+        #True to pause
+        #False to unpause
         self.settings['notPaused'] = not val
         if not val: #If we're unpausing, kill the waiting loop:
             try:
@@ -507,7 +514,9 @@ class MainWin(QtGui.QMainWindow):
 
     def collectScopeLoop(self):
         while self.settings['collectingScope']:
-            if not self.settings['notPaused']: 
+            if not self.settings['notPaused']:
+                #Have the scope updating remotely so it can be changed if needed
+                self.Agil.write(':RUN')
                 #If we want to pause, make a fake event loop and terminate it from outside forces
                 self.pausingLoop = QtCore.QEventLoop()
                 self.pausingLoop.exec_()
@@ -690,6 +699,5 @@ def main():
 
 if __name__ == '__main__':
     main()
-
 
 
