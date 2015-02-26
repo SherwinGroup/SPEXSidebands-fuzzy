@@ -298,14 +298,14 @@
  </widget>
  <customwidgets>
   <customwidget>
+   <class>QFNumberEdit</class>
+   <extends>QLineEdit</extends>
+   <header>InstsAndQt.customQt</header>
+  </customwidget>
+  <customwidget>
    <class>PlotWidget</class>
    <extends>QGraphicsView</extends>
    <header>pyqtgraph</header>
-  </customwidget>
-  <customwidget>
-   <class>QFNumberEdit</class>
-   <extends>QLineEdit</extends>
-   <header>customQt</header>
   </customwidget>
  </customwidgets>
  <tabstops>

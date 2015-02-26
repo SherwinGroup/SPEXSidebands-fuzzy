@@ -12,7 +12,7 @@ import time
 import copy
 import sys, os
 try:
-    from Instruments import SPEX, Agilent6000
+    from InstsAndQt.Instruments import SPEX, Agilent6000
 except Exception as e:
     raise IOError('Instrument library not found. Often placed in another directory')
 from SPEXWin import SPEXWin
@@ -523,7 +523,7 @@ class MainWin(QtGui.QMainWindow):
                 pass
             pyCh = self.settings['pyCh']
             pmCh = self.settings['pmCh']
-            pyData, pmData = self.Agil.readMultipleChannels(pyCh, pmCh)
+            pyData, pmData = self.Agil.getMultipleChannels(pyCh, pmCh)
             if self.settings['notPaused']:
                 self.pyDataSig.emit(pyData)
                 self.pmDataSig.emit(pmData)

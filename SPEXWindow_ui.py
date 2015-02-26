@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'Z:\Darren\Python\SPEXSidebands\SPEXWindow.ui'
+# Form implementation generated from reading ui file 'C:\Users\dvalovcin\Documents\GitHub\SPEXSidebands-fuzzy\SPEXWindow.ui'
 #
-# Created: Wed Feb 04 13:11:09 2015
+# Created: Tue Feb 24 15:43:59 2015
 #      by: PyQt4 UI code generator 4.9.6
 #
 # WARNING! All changes made in this file will be lost!
@@ -88,4 +88,4 @@ class Ui_MainWindow(object):
         self.menuFile.setTitle(_translate("MainWindow", "File", None))
         self.actionInitiate_SPEX.setText(_translate("MainWindow", "Initiate SPEX...", None))
 
-from customQt import QFNumberEdit
+from InstsAndQt.customQt import QFNumberEdit

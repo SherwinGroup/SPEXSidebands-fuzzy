@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'Z:\Darren\Python\SPEXSidebands\MainWindow.ui'
+# Form implementation generated from reading ui file 'C:\Users\dvalovcin\Documents\GitHub\SPEXSidebands-fuzzy\MainWindow.ui'
 #
-# Created: Thu Feb 05 16:42:40 2015
+# Created: Tue Feb 24 15:44:01 2015
 #      by: PyQt4 UI code generator 4.9.6
 #
 # WARNING! All changes made in this file will be lost!
@@ -220,5 +220,5 @@ class Ui_MainWindow(object):
         self.actionGoto_Wavenumber.setText(_translate("MainWindow", "Goto Wavenumber...", None))
         self.mSpexOpen.setText(_translate("MainWindow", "Open SPEX Settings", None))
 
-from customQt import QFNumberEdit
 from pyqtgraph import PlotWidget
+from InstsAndQt.customQt import QFNumberEdit

@@ -131,7 +131,7 @@
       </widget>
      </item>
      <item>
-      <widget class="QLineEdit" name="tNIRP"/>
+      <widget class="QINumberEdit" name="tNIRP"/>
      </item>
      <item>
       <widget class="QLabel" name="label_12">
@@ -287,12 +287,12 @@
   <customwidget>
    <class>QFNumberEdit</class>
    <extends>QLineEdit</extends>
-   <header>customQt</header>
+   <header>InstsAndQt.customQt</header>
   </customwidget>
   <customwidget>
    <class>QINumberEdit</class>
    <extends>QLineEdit</extends>
-   <header>customQt</header>
+   <header>InstsAndQt.customQt</header>
   </customwidget>
  </customwidgets>
  <resources/>

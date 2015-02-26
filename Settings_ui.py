@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'Z:\Darren\Python\SPEXSidebands\Settings.ui'
+# Form implementation generated from reading ui file 'C:\Users\dvalovcin\Documents\GitHub\SPEXSidebands-fuzzy\Settings.ui'
 #
-# Created: Thu Feb 05 16:53:05 2015
+# Created: Tue Feb 24 15:46:28 2015
 #      by: PyQt4 UI code generator 4.9.6
 #
 # WARNING! All changes made in this file will be lost!
@@ -102,7 +102,7 @@ class Ui_Dialog(object):
         self.label_8 = QtGui.QLabel(Dialog)
         self.label_8.setObjectName(_fromUtf8("label_8"))
         self.horizontalLayout_5.addWidget(self.label_8)
-        self.tNIRP = QtGui.QLineEdit(Dialog)
+        self.tNIRP = QINumberEdit(Dialog)
         self.tNIRP.setObjectName(_fromUtf8("tNIRP"))
         self.horizontalLayout_5.addWidget(self.tNIRP)
         self.label_12 = QtGui.QLabel(Dialog)
@@ -204,4 +204,4 @@ class Ui_Dialog(object):
         self.label_14.setText(_translate("Dialog", "Temperature", None))
         self.label_11.setText(_translate("Dialog", "Save Comments:", None))
 
-from customQt import QINumberEdit, QFNumberEdit
+from InstsAndQt.customQt import QINumberEdit, QFNumberEdit

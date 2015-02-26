@@ -126,7 +126,7 @@
   <customwidget>
    <class>QFNumberEdit</class>
    <extends>QLineEdit</extends>
-   <header>customQt</header>
+   <header>InstsAndQt.customQt</header>
   </customwidget>
  </customwidgets>
  <resources/>

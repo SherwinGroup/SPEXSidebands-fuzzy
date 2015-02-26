@@ -7,11 +7,10 @@ Created on Tue Feb 03 12:53:22 2015
 
 import numpy as np
 from PyQt4 import QtGui, QtCore
-from customQt import QFNumberEdit
 from SPEXWindow_ui import Ui_MainWindow
 import threading
 import time
-from Instruments import SPEX, Agilent6000
+from InstsAndQt.Instruments import SPEX
 import pyqtgraph as pg
 pg.setConfigOption('background', 'w')
 pg.setConfigOption('foreground', 'k')
