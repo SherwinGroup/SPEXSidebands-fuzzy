@@ -1,6 +1,8 @@
 Have spex window open with the proper wavelength
 have spex window show wn, not steps
 change spex wn to pg spinbox
+NIRP = QILineedit?
+say when you start moving
 
 plot live
 save json
@@ -8,3 +10,5 @@ have settings initialize with proper GPIB
 scale by HV setting
 
 start scope paused
+initialize regions
+set collection points
