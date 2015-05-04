@@ -1,0 +1,10 @@
+Have spex window open with the proper wavelength
+have spex window show wn, not steps
+change spex wn to pg spinbox
+
+plot live
+save json
+have settings initialize with proper GPIB 
+scale by HV setting
+
+start scope paused
