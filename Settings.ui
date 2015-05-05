@@ -26,7 +26,11 @@
         </widget>
        </item>
        <item>
-        <widget class="QComboBox" name="cAGPIB"/>
+        <widget class="QComboBox" name="cAGPIB">
+         <property name="toolTip">
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;USB...&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         </property>
+        </widget>
        </item>
       </layout>
      </item>
@@ -40,7 +44,11 @@
         </widget>
        </item>
        <item>
-        <widget class="QComboBox" name="cSGPIB"/>
+        <widget class="QComboBox" name="cSGPIB">
+         <property name="toolTip">
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;GPIB0::4::INSTR&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         </property>
+        </widget>
        </item>
       </layout>
      </item>
@@ -131,7 +139,11 @@
       </widget>
      </item>
      <item>
-      <widget class="QINumberEdit" name="tNIRP"/>
+      <widget class="QFNumberEdit" name="tNIRP">
+       <property name="text">
+        <string>0</string>
+       </property>
+      </widget>
      </item>
      <item>
       <widget class="QLabel" name="label_12">
@@ -141,7 +153,11 @@
       </widget>
      </item>
      <item>
-      <widget class="QLineEdit" name="tNIRLam"/>
+      <widget class="QFNumberEdit" name="tNIRLam">
+       <property name="text">
+        <string>0</string>
+       </property>
+      </widget>
      </item>
     </layout>
    </item>
@@ -155,12 +171,18 @@
       </widget>
      </item>
      <item>
-      <widget class="QLineEdit" name="tHV">
+      <widget class="QINumberEdit" name="tHV">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
+       </property>
+       <property name="toolTip">
+        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Automatic 10x if 700V&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+       </property>
+       <property name="text">
+        <string>0</string>
        </property>
       </widget>
      </item>
@@ -189,7 +211,11 @@
       </widget>
      </item>
      <item>
-      <widget class="QLineEdit" name="tFELP"/>
+      <widget class="QFNumberEdit" name="tFELP">
+       <property name="text">
+        <string>0</string>
+       </property>
+      </widget>
      </item>
      <item>
       <widget class="QLabel" name="label_15">
@@ -199,7 +225,11 @@
       </widget>
      </item>
      <item>
-      <widget class="QLineEdit" name="tFELLam"/>
+      <widget class="QFNumberEdit" name="tFELLam">
+       <property name="text">
+        <string>0</string>
+       </property>
+      </widget>
      </item>
     </layout>
    </item>
@@ -213,7 +243,11 @@
       </widget>
      </item>
      <item>
-      <widget class="QLineEdit" name="tRepRate"/>
+      <widget class="QFNumberEdit" name="tRepRate">
+       <property name="text">
+        <string>0.75</string>
+       </property>
+      </widget>
      </item>
      <item>
       <spacer name="horizontalSpacer">
@@ -236,7 +270,11 @@
       </widget>
      </item>
      <item>
-      <widget class="QLineEdit" name="tTemp"/>
+      <widget class="QINumberEdit" name="tTemp">
+       <property name="text">
+        <string>0</string>
+       </property>
+      </widget>
      </item>
     </layout>
    </item>

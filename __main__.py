@@ -8,9 +8,10 @@ import numpy as np
 import scipy.integrate as spi
 from PyQt4 import QtGui, QtCore
 import threading
+import json
+import glob
 import time
 import copy
-import sys, os
 try:
     from InstsAndQt.Instruments import SPEX, Agilent6000
 except Exception as e:
@@ -24,7 +25,17 @@ pg.setConfigOption('foreground', 'k')
 try:
     import visa
 except:
-    print 'Error. VISA library not installed' 
+    print 'Error. VISA library not installed'
+
+
+import logging
+log = logging.getLogger("SPEX")
+log.setLevel(logging.DEBUG)
+handler1 = logging.StreamHandler()
+handler1.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - [%(filename)s:%(lineno)s - %(funcName)s()] - %(levelname)s - %(message)s')
+handler1.setFormatter(formatter)
+log.addHandler(handler1)
 
 class MainWin(QtGui.QMainWindow):
     #emits when oscilloscope is done taking data so that
@@ -42,6 +53,10 @@ class MainWin(QtGui.QMainWindow):
     wnUpdateSig = QtCore.pyqtSignal(object, object) 
     #emit to update the boxcar values
     boxcarSig = QtCore.pyqtSignal(object, object, object)
+
+    # Signal emitted each time a data point is taken, used
+    # for updating graph in real time
+    sigNewStep = QtCore.pyqtSignal()
     
     #Thread which handles polling the oscilloscope
     scopeCollectionThread = None
@@ -55,6 +70,7 @@ class MainWin(QtGui.QMainWindow):
         self.pmDataSig.connect(self.updatePMTGraph)
         self.statusSig.connect(self.updateStatusBar)
         self.boxcarSig.connect(self.updateBoxcarTexts)
+        self.sigNewStep.connect(self.updateScan)
         
         self.openSPEX()
         self.openAgi()
@@ -76,6 +92,12 @@ class MainWin(QtGui.QMainWindow):
         plotitem.setLabel('top',text='PMT')
         plotitem.setLabel('left',text='Voltage',units='V')
         plotitem.setLabel('bottom',text='Time', units='s')
+
+        self.pScan = self.ui.gScan.plot(pen='k')
+        plotitem = self.ui.gScan.getPlotItem()
+        plotitem.setLabel('top',text='PMT')
+        plotitem.setLabel('left',text='Integrated Voltage',units='V.s')
+        plotitem.setLabel('bottom',text='Wavenumber')
         
         self.initLinearRegionBounds()
         #Now we make an array of all the textboxes for the linear regions to make it
@@ -97,9 +119,14 @@ class MainWin(QtGui.QMainWindow):
         self.ui.bChooseDirectory.clicked.connect(self.updateSaveLoc)
         self.ui.bStart.clicked.connect(self.startScan)
         self.ui.bPause.clicked[bool].connect(self.togglePause)
+        self.ui.bPause.setChecked(True)
 #        self.ui.bAbort.clicked.connect(lambda self=self: setattr(self, "settings['runningScan']", False))
         self.ui.bAbort.clicked.connect(self.abortScan)
         self.ui.bSaveWaveforms.clicked.connect(self.saveWaveforms)
+        self.ui.bInitPMT.clicked.connect(self.initRegions)
+        self.ui.bInitPyro.clicked.connect(self.initRegions)
+
+
         self.ui.mFileSettings.triggered.connect(self.launchSettings)
         self.ui.mFileExit.triggered.connect(self.closeEvent)
         self.ui.mSpexOpen.triggered.connect(self.openSPEXWindow)
@@ -116,31 +143,33 @@ class MainWin(QtGui.QMainWindow):
         
         
         self.show()
-    def abortScan(self):
-        self.settings['runningScan'] = False        
     def initSettings(self):
         #Initializes all the settings for the window in one tidy location,
         #make it have a more logical place if settings are saved and recalled eac
         #time
         s = dict()
         #Communication settings
-        s['aGPIB'] = 'Fake'#'GPIB0::5::INSTR' #GPIB of the agilent
-        s['sGPIB'] = 'Fake'#'GPIB0::4::INSTR' #GPIB of the SPEX
-        s['GPIBChoices'] = []   #List of the possible GPIB choices
+        try:
+            s['GPIBChoices'] = [i.encode("ascii") for i in visa.ResourceManager().list_resources()]
+        except:
+            s['GPIBChoices'] = ["a", "b", "c"]
+        s['GPIBChoices'].append("Fake")
+        s['aGPIB'] = 'USB0::0x0957::0x1734::MY44007041::INSTR' if 'USB0::0x0957::0x1734::MY44007041::INSTR' in s['GPIBChoices'] else "Fake"#GPIB of the agilent
+        s['sGPIB'] = 'GPIB0::4::INSTR' if 'GPIB0::4::INSTR' in s['GPIBChoices'] else "Fake"#'GPIB0::4::INSTR' #GPIB of the SPEX
         s['pyCh'] = 4  #Osc channel for the pyro
-        s['pmCh'] = 1  #osc channel for the pmt 
+        s['pmCh'] = 2  #osc channel for the pmt
         
         #saving settings
         s['saveLocation'] = '.'
         s['saveName'] = ''
         s['saveComments'] = ''
-        s['NIRP'] = '' #NIR Power
-        s['NIRlambda'] = '' #NIR wavenumber
-        s['FELP'] = '' #FEL power
-        s['FELlambda'] = '' #FEL wavenumber
-        s['Temperature'] = ''
-        s['PMHV'] = '' #PMT voltage
-        s['repRate'] = 0.75
+        s['nir_power'] = 0 #NIR Power
+        s['nir_lambda'] = 0 #NIR wavenumber
+        s['fel_power'] = 0 #FEL power
+        s['fel_lambda'] = 0 #FEL wavenumber
+        s['temperature'] = 0
+        s['pm_hv'] = 0 #PMT voltage
+        s['fel_reprate'] = 0.75
         
         #scan settings
         s['startWN'] = 0 #Starting wavenumber
@@ -150,7 +179,7 @@ class MainWin(QtGui.QMainWindow):
         
         #running flags
         #Pausing causes the oscilloscope reading loop to wait until we are unpaused
-        s['notPaused'] = True
+        s['notPaused'] = False # start paused
         #This is flag specifies whether the oscilloscope thread should be running or not
         #making it false causes that thread to close
         s['collectingScope'] = False
@@ -167,6 +196,7 @@ class MainWin(QtGui.QMainWindow):
         #wavenumber, ref FP, ref CD, signal
         s['allData'] = np.empty((0,4))
         s['currentWN'] = 0
+        s["currentScan"] = dict() # for keeping track of the current data
         
         #boundaries for boxcar integration
         #bc[py|pm] -> boxcar[Pyro|PMT]
@@ -185,6 +215,9 @@ class MainWin(QtGui.QMainWindow):
         
         
         self.settings = s
+
+    def abortScan(self):
+        self.settings['runningScan'] = False
         
     def initLinearRegionBounds(self):
         #initialize array for all 5 boxcar regions
@@ -239,12 +272,12 @@ class MainWin(QtGui.QMainWindow):
         oldsGPIB = self.settings['sGPIB']
 
         self.settings = newSettings
-        print oldaGPIB, newSettings['aGPIB']
+        log.debug("Old Agi GPIB: {}. New Agi GPIB: {}".format(oldaGPIB, newSettings['aGPIB']))
         if not oldaGPIB == newSettings['aGPIB']:
             self.Agil.close()
             self.settings['aGPIB'] = newSettings['aGPIB']
             self.openAgi()
-        print oldsGPIB, newSettings['sGPIB']
+        log.debug("Old SPEX GPIB: {}. New SPEX GPIB: {}".format(oldsGPIB, newSettings['sGPIB']))
         if not oldsGPIB == newSettings['sGPIB']:
             self.SPEX.close()
             self.settings['sGPIB'] = newSettings['sGPIB']
@@ -255,7 +288,7 @@ class MainWin(QtGui.QMainWindow):
                     self.settings['stepWN'])
             
     def openSPEXWindow(self):
-        if self.SPEXWindow == None:
+        if self.SPEXWindow is None:
             self.SPEXWindow = SPEXWin(SPEXInfo = self.SPEX, parent=self)
         else:
             self.SPEXWindow.raise_()
@@ -294,6 +327,28 @@ class MainWin(QtGui.QMainWindow):
         curVals = list(self.boxcarRegions[i].getRegion())
         curVals[j] = float(sender.text())
         self.boxcarRegions[i].setRegion(tuple(curVals))
+
+    def initRegions(self):
+        sent = self.sender()
+        linearRegions = self.linearRegionTextBoxes[0:3] # the ones for the pyro
+        try:
+            length = len(self.settings['pyData'])
+            point = self.settings['pyData'][length/2,0]
+        except:
+            return
+        if sent is self.ui.bInitPMT:
+            linearRegions = self.linearRegionTextBoxes[-2:] # the ones for the PMT
+            try:
+                length = len(self.settings['pmData'])
+                point = self.settings['pmData'][length/2,0]
+            except:
+                return
+
+        # set all of the linear regions
+        [[i.setText(str(point)) for i in j] for j in zip(*linearRegions)]
+        [[i.setText(str(point)) for i in j] for j in zip(*linearRegions)]
+
+
         
     def updateSaveLoc(self):
         fname = str(QtGui.QFileDialog.getExistingDirectory(self, "Choose File Directory...",directory=self.settings['saveLocation']))
@@ -303,24 +358,49 @@ class MainWin(QtGui.QMainWindow):
         self.settings['saveLocation'] = fname + '/'
     
     def genSaveHeader(self):
-        #save space
-        s = self.settings
-        st = ('PNIR={},lambdaNIR={},PTHz={},fTHz={},\nRep_rate={},Exptime={},Gain={},Center_lambda={},'+\
-                 'Grating={},BG_image={},Series={},Ymin={},Ymax={},slits={},CCD_temp={},sample_temp={},PMVoltage={}')
-                 
-        st = st.format(s['NIRP'], s['NIRlambda'], s['FELP'], s['FELlambda'], s['repRate'], 
-                   'Nil', 'Nil', 'Nil', 'Nil', 'Nil', 'Nil', 'Nil', 'Nil', 'Nil', 'Nil', s['Temperature'],s['PMHV'])
-        return self.settings['saveComments'] + '\n' + st
+        #Return a string of header information required for processing
+        s = dict()
+        s['nir_power'] = self.settings['nir_power']
+        s['nir_lambda'] = self.settings['nir_lambda']
+        s['pm_hv'] = self.settings['pm_hv']
+        s['fel_power'] = self.settings['fel_power']
+        s['fel_lambda'] = self.settings['fel_lambda']
+        s['fel_reprate'] = self.settings['fel_reprate']
+        s['temperature'] = self.settings['temperature']
+
+        self.settings['saveComments']
+        st = str(self.ui.tSidebandNumber.text()) + "\n"
+        st += json.dumps(s) + "\n"
+        st += self.settings['saveComments'] + "\n"
+        
+        
+        return  st
     
     def saveWaveforms(self):
         pyro = self.settings['pyData']
         sig = self.settings['pmData']
-        
-        np.savetxt(self.settings['saveLocation'] + str(self.ui.tSaveName.text()) + '_referenceDetector.txt',
-                   pyro, header = self.genSaveHeader()+'\nVoltage (V), Time(s)')
-                   
+
+        if pyro is None: #it's empty
+            return
+
+        num = 1
+        files = glob.glob(self.settings['saveLocation'] + str(self.ui.tSaveName.text()) + '_referenceDetector*.txt')
+
+        num = str(len(files) * num) if len(files)>0 else ''
+        np.savetxt(self.settings['saveLocation'] + str(self.ui.tSaveName.text()) + '_referenceDetector' + num + '.txt',
+                   pyro, header = self.genSaveHeader()+'Voltage (V), Time(s)')
+
+
+
+        num = 1
+        files = glob.glob(self.settings['saveLocation'] + str(self.ui.tSaveName.text()) + '_signalWaveform*.txt')
+        print "found:", files
+
+        num = str(len(files) * num) if len(files)>0 else ''
+        np.savetxt(self.settings['saveLocation'] + str(self.ui.tSaveName.text()) + '_signalWaveform' + num + '.txt',
+                   pyro, header = self.genSaveHeader()+'Voltage (V), Time(s)')
         np.savetxt(self.settings['saveLocation'] + str(self.ui.tSaveName.text()) + '_signalWaveform.txt',
-                   sig, header = self.genSaveHeader()+'\nVoltage (V), Time(s)')
+                   sig, header = self.genSaveHeader()+'Voltage (V), Time(s)')
         
     
     def openSPEX(self):
@@ -354,6 +434,14 @@ class MainWin(QtGui.QMainWindow):
             
         self.Agil.setTrigger()
         self.settings['collectingScope'] = True
+
+        # Without these settings, the oscilloscope will only transfer
+        # 1000 data points, which means a lot gets lost and the signal
+        # can change quality significantly.
+        # Maybe this can eventually be specified somewhere in the GUI?
+        self.Agil.write("STOP")
+        self.Agil.write(":WAV:POIN:MODE MAX")
+        self.Agil.write(":WAV:POIN 10000")
             
         self.scopeCollectionThread = threading.Thread(target = self.collectScopeLoop)
         self.scopeCollectionThread.start()
@@ -361,7 +449,7 @@ class MainWin(QtGui.QMainWindow):
             self.togglePause(True)
 
     def startScan(self):
-        if self.settings['NIRP'] == '-1':
+        if self.settings['nir_power'] == -1.0:
             self.settings['startWN'] = 13160
             self.settings['stepWN'] = -1
             self.settings['endWN'] = 13130
@@ -372,12 +460,14 @@ class MainWin(QtGui.QMainWindow):
         
         #wavenumber, ref FP, ref CD, signal
         self.settings['allData'] = np.empty((0,4))
+        self.settings['currentScan'] = dict()
+        self.updateScan() # clear the graph
         self.settings['runningScan'] = True
         self.ui.bStart.setEnabled(False)
+        self.statusSig.emit(['Starting Scan', 3000])
         
         self.scanRunningThread = threading.Thread(target = self.runScanLoop)
         self.scanRunningThread.start()
-        
         
     def runScanLoop(self):
         WNRange = np.arange(self.settings['startWN'],
@@ -386,27 +476,30 @@ class MainWin(QtGui.QMainWindow):
         
         for wavenumber in WNRange:
             if not self.settings['runningScan']:
-                print 'breaking scan'
+                log.info('breaking scan')
                 break
             self.settings['collectingData'] = False
             self.SPEX.gotoWN(wavenumber)
-            self.statusSig.emit(['Wavenumber: '+str(wavenumber), 0])
+            self.statusSig.emit(['Wavenumber: {}. No. {}'.format(wavenumber, 0), 0])
             self.wnUpdateSig.emit(str(wavenumber), str(self.SPEX.currentPositionSteps))
-            num = 0 #number of averages. Doing it this way so that if we want to implement
-                    #something where we don't count a number, then we can decline decrementing
-                    #effectively saying the point didn't happen
+            num = 0 # number of averages. Doing it this way so that if we want to implement
+                    # something where we don't count a number, then we can decline decrementing
+                    # effectively saying the point didn't happen
             self.settings['collectingData'] = True
             while num < self.settings['ave']:
                 
                 if not self.settings['runningScan']:
                     print 'breaking scan'
                     break
-            #Now want to take data. This means we need to wait for the oscilloscope to 
-            #finish collecting its current round. Enter a waiting loop. 
+            # Now want to take data. This means we need to wait for the oscilloscope to
+            # finish collecting its current round. Enter a waiting loop.
                 self.waitingForDataLoop = QtCore.QEventLoop()
                 self.updateDataSig.connect(self.waitingForDataLoop.exit)
                 self.waitingForDataLoop.exec_()
                 refFP, refCD, sig = self.integrateData()
+                mult = 10 if self.settings['pm_hv']==700 else 1
+                sig *= mult # to account for the difference between 700 V and 1kV
+
                 self.boxcarSig.emit(refFP, refCD, sig)
                 isValid = True #Flag for telling whether to keep the data or not
                 if isValid:
@@ -414,12 +507,18 @@ class MainWin(QtGui.QMainWindow):
                     self.settings['allData'] = np.append(
                         self.settings['allData'], [[wavenumber, refFP, refCD, sig]],
                         axis=0)
+                    self.sigNewStep.emit()
+                    self.statusSig.emit(['Wavenumber: {}. No. {}'.format(wavenumber, num), 0])
             
             
         
-        #save Data
-        np.savetxt(self.settings['saveLocation'] + str(self.ui.tSaveName.text()) + '_scanData.txt',
-                   self.settings['allData'], header = self.genSaveHeader() + '\nWavenumber, Integrated front porch, Integrated Cavity dump, integrated signal')
+        #save Data. Check if there are any in the folder yet
+        num = 1
+        files = glob.glob(self.settings['saveLocation'] + str(self.ui.tSaveName.text()) + '_scanData*.txt')
+        num = str(len(files) * num) if len(files)>0 else ''
+        np.savetxt(self.settings['saveLocation'] + str(self.ui.tSaveName.text()) + '_scanData' + num + '.txt',
+                   self.settings['allData'],
+                   header = self.genSaveHeader() +  'Wavenumber, Integrated front porch, Integrated Cavity dump, integrated signal')
         
         #clean up after done
         self.settings['collectingData'] = False
@@ -450,6 +549,16 @@ class MainWin(QtGui.QMainWindow):
         #while trying to do analysis?
         pyD = self.settings['pyData']
         pmD = self.settings['pmData']
+        # If you pause before you start, there can be a tiny, tiny lag which
+        # causes some asychronization
+        # Usually fixed by just waiting a moment and then getting the data
+        try:
+            pyD[:]
+            pmD[:]
+        except:
+            time.sleep(0.01)
+            pyD = self.settings['pyData']
+            pmD = self.settings['pmData']
         
         pyBGbounds = self.boxcarRegions[0].getRegion()
         pyBGidx = self.findIndices(pyBGbounds, pyD[:,0])
@@ -474,20 +583,22 @@ class MainWin(QtGui.QMainWindow):
         pmSG = spi.simps(pmD[pmSGidx[0]:pmSGidx[1],1], pmD[pmSGidx[0]:pmSGidx[1], 0])
         
         return pyFP-pyBG, pyCD-pyBG, pmSG-pmBG
-        
-    def findIndices(self, values, dataset):
-        '''Given an ordered dataset and a pair of values, returns the indices which
-           correspond to these bounds  '''
+
+
+    @staticmethod
+    def findIndices(values, dataset):
+        """Given an ordered dataset and a pair of values, returns the indices which
+           correspond to these bounds  """
         indx = list((dataset>values[0]) & (dataset<values[1]))
-        #convert to string for easy finding
+        # convert to string for easy finding
         st = ''.join([str(int(i)) for i in indx])
         start = st.find('1')
         if start == -1:
             start = 0
-        end = start + st[start:].find('0')
+        end = (start + st[start:].find('0') if st[start:].find('0')!=-1 else len(indx))
         if end<=0:
-            end = 1
-        return (start, end)
+            end = 1 + start
+        return start, end
 
     def updateStatusBar(self, args):
         '''function to update the status bar. Connects to a signal so it
@@ -508,6 +619,20 @@ class MainWin(QtGui.QMainWindow):
     def updatePMTGraph(self, data):
         self.settings['pmData'] = data
         self.pPMT.setData(data[:,0], data[:,1])
+
+    def updateScan(self):
+        data = self.settings["allData"]
+        # Find duplicates
+        wn, wnIdx = np.unique(data[:,0], return_inverse=True)
+        # make a nan array for easy summing
+        newData = np.empty((len(wn), len(data[:,3]))) * np.nan
+        # Set the array of data
+        newData[wnIdx, range(len(data[:,3]))] = data[:,3]
+        # sum over them
+        newVal = np.nanmean(newData, axis=1)
+        self.pScan.setData(wn, newVal)
+
+
         
 
 
@@ -561,12 +686,6 @@ class MainWin(QtGui.QMainWindow):
         self.close()
 
 
-
-
-
-
-
-
 class SettingsDialog(QtGui.QDialog):
     def __init__(self, parent = None, settings=None):
         super(SettingsDialog, self).__init__(parent)
@@ -593,13 +712,13 @@ class SettingsDialog(QtGui.QDialog):
         self.ui.cPMCh.insertItems(0, ['1', '2', '3', '4'])
         self.ui.cPMCh.setCurrentIndex(settings['pmCh']-1)
         
-        self.ui.tNIRP.setText(str(settings['NIRP']))
-        self.ui.tNIRLam.setText(str(settings['NIRlambda']))
-        self.ui.tHV.setText(str(settings['PMHV']))
-        self.ui.tFELP.setText(str(settings['FELP']))
-        self.ui.tFELLam.setText(str(settings['FELlambda']))
-        self.ui.tRepRate.setText(str(settings['repRate']))
-        self.ui.tTemp.setText(str(settings['Temperature']))
+        self.ui.tNIRP.setText(str(settings['nir_power']))
+        self.ui.tNIRLam.setText(str(settings['nir_lambda']))
+        self.ui.tHV.setText(str(settings['pm_hv']))
+        self.ui.tFELP.setText(str(settings['fel_power']))
+        self.ui.tFELLam.setText(str(settings['fel_lambda']))
+        self.ui.tRepRate.setText(str(settings['fel_reprate']))
+        self.ui.tTemp.setText(str(settings['temperature']))
         self.ui.tSaveComments.setText(settings['saveComments'])
         
         if settings['runningScan']:
@@ -607,77 +726,28 @@ class SettingsDialog(QtGui.QDialog):
             self.ui.tStartWN.setEnabled(False)
             self.ui.tStepWN.setEnabled(False)
             self.ui.tEndWN.setEnabled(False)
+
     @staticmethod
     def getSettings(parent = None, settings = None):
         dialog = SettingsDialog(parent, settings)
         result = dialog.exec_()
         settings['aGPIB'] = str(dialog.ui.cAGPIB.currentText())
         settings['sGPIB'] = str(dialog.ui.cSGPIB.currentText())
-        settings['startWN'] = float(dialog.ui.tStartWN.text())
-        settings['stepWN'] = float(dialog.ui.tStepWN.text())
-        settings['endWN'] = float(dialog.ui.tEndWN.text())
-        settings['ave'] = int(dialog.ui.tAverages.text())
+        settings['startWN'] = dialog.ui.tStartWN.value()
+        settings['stepWN'] = dialog.ui.tStepWN.value()
+        settings['endWN'] = dialog.ui.tEndWN.value()
+        settings['ave'] = dialog.ui.tAverages.value()
         settings['pyCh'] = int(dialog.ui.cPyroCh.currentText())
         settings['pmCh'] = int(dialog.ui.cPMCh.currentText())
-        settings['NIRP'] = str(dialog.ui.tNIRP.text())
-        settings['NIRlambda'] = str(dialog.ui.tNIRLam.text())
-        settings['PMHV'] = str(dialog.ui.tHV.text())
-        settings['FELP'] = str(dialog.ui.tFELP.text())
-        settings['FELlambda'] = str(dialog.ui.tFELLam.text())
-        settings['repRate'] = str(dialog.ui.tRepRate.text())
-        settings['Temperature'] = str(dialog.ui.tTemp.text())
-        settings['saveComments'] = dialog.ui.tSaveComments.toPlainText()
+        settings['nir_power'] = dialog.ui.tNIRP.value()
+        settings['nir_lambda'] = dialog.ui.tNIRLam.value()
+        settings['pm_hv'] = dialog.ui.tHV.value()
+        settings['fel_power'] = dialog.ui.tFELP.value()
+        settings['fel_lambda'] = dialog.ui.tFELLam.value()
+        settings['fel_reprate'] = dialog.ui.tRepRate.value()
+        settings['temperature'] = dialog.ui.tTemp.value()
+        settings['saveComments'] = str(dialog.ui.tSaveComments.toPlainText())
         return (settings, result==QtGui.QDialog.Accepted)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

@@ -38,7 +38,7 @@
        </widget>
       </item>
       <item>
-       <widget class="QFNumberEdit" name="tGotoWN"/>
+       <widget class="SpinBox" name="sbGoto"/>
       </item>
       <item>
        <widget class="QPushButton" name="bGo">
@@ -124,9 +124,9 @@
  </widget>
  <customwidgets>
   <customwidget>
-   <class>QFNumberEdit</class>
-   <extends>QLineEdit</extends>
-   <header>InstsAndQt.customQt</header>
+   <class>SpinBox</class>
+   <extends>QSpinBox</extends>
+   <header>pyqtgraph</header>
   </customwidget>
  </customwidgets>
  <resources/>

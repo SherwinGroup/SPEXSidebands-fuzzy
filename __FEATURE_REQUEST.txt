@@ -12,3 +12,5 @@ scale by HV setting
 start scope paused
 initialize regions
 set collection points
+
+lineedit for sideband number

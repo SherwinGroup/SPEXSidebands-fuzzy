@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'C:\Users\dvalovcin\Documents\GitHub\SPEXSidebands-fuzzy\SPEXWindow.ui'
 #
-# Created: Tue Feb 24 15:43:59 2015
+# Created: Mon May 04 13:02:16 2015
 #      by: PyQt4 UI code generator 4.9.6
 #
 # WARNING! All changes made in this file will be lost!
@@ -38,9 +38,9 @@ class Ui_MainWindow(object):
         self.label = QtGui.QLabel(self.centralwidget)
         self.label.setObjectName(_fromUtf8("label"))
         self.horizontalLayout.addWidget(self.label)
-        self.tGotoWN = QFNumberEdit(self.centralwidget)
-        self.tGotoWN.setObjectName(_fromUtf8("tGotoWN"))
-        self.horizontalLayout.addWidget(self.tGotoWN)
+        self.sbGoto = SpinBox(self.centralwidget)
+        self.sbGoto.setObjectName(_fromUtf8("sbGoto"))
+        self.horizontalLayout.addWidget(self.sbGoto)
         self.bGo = QtGui.QPushButton(self.centralwidget)
         self.bGo.setObjectName(_fromUtf8("bGo"))
         self.horizontalLayout.addWidget(self.bGo)
@@ -88,4 +88,4 @@ class Ui_MainWindow(object):
         self.menuFile.setTitle(_translate("MainWindow", "File", None))
         self.actionInitiate_SPEX.setText(_translate("MainWindow", "Initiate SPEX...", None))
 
-from InstsAndQt.customQt import QFNumberEdit
+from pyqtgraph import SpinBox

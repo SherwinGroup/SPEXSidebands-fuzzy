@@ -2,8 +2,8 @@
 
 # Form implementation generated from reading ui file 'C:\Users\dvalovcin\Documents\GitHub\SPEXSidebands-fuzzy\Settings.ui'
 #
-# Created: Tue Feb 24 15:46:28 2015
-#      by: PyQt4 UI code generator 4.9.6
+# Created: Mon May 04 15:58:35 2015
+#      by: PyQt4 UI code generator 4.10.4
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -102,13 +102,13 @@ class Ui_Dialog(object):
         self.label_8 = QtGui.QLabel(Dialog)
         self.label_8.setObjectName(_fromUtf8("label_8"))
         self.horizontalLayout_5.addWidget(self.label_8)
-        self.tNIRP = QINumberEdit(Dialog)
+        self.tNIRP = QFNumberEdit(Dialog)
         self.tNIRP.setObjectName(_fromUtf8("tNIRP"))
         self.horizontalLayout_5.addWidget(self.tNIRP)
         self.label_12 = QtGui.QLabel(Dialog)
         self.label_12.setObjectName(_fromUtf8("label_12"))
         self.horizontalLayout_5.addWidget(self.label_12)
-        self.tNIRLam = QtGui.QLineEdit(Dialog)
+        self.tNIRLam = QFNumberEdit(Dialog)
         self.tNIRLam.setObjectName(_fromUtf8("tNIRLam"))
         self.horizontalLayout_5.addWidget(self.tNIRLam)
         self.verticalLayout_2.addLayout(self.horizontalLayout_5)
@@ -117,7 +117,7 @@ class Ui_Dialog(object):
         self.label_13 = QtGui.QLabel(Dialog)
         self.label_13.setObjectName(_fromUtf8("label_13"))
         self.horizontalLayout_7.addWidget(self.label_13)
-        self.tHV = QtGui.QLineEdit(Dialog)
+        self.tHV = QINumberEdit(Dialog)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -133,13 +133,13 @@ class Ui_Dialog(object):
         self.label_9 = QtGui.QLabel(Dialog)
         self.label_9.setObjectName(_fromUtf8("label_9"))
         self.horizontalLayout_6.addWidget(self.label_9)
-        self.tFELP = QtGui.QLineEdit(Dialog)
+        self.tFELP = QFNumberEdit(Dialog)
         self.tFELP.setObjectName(_fromUtf8("tFELP"))
         self.horizontalLayout_6.addWidget(self.tFELP)
         self.label_15 = QtGui.QLabel(Dialog)
         self.label_15.setObjectName(_fromUtf8("label_15"))
         self.horizontalLayout_6.addWidget(self.label_15)
-        self.tFELLam = QtGui.QLineEdit(Dialog)
+        self.tFELLam = QFNumberEdit(Dialog)
         self.tFELLam.setObjectName(_fromUtf8("tFELLam"))
         self.horizontalLayout_6.addWidget(self.tFELLam)
         self.verticalLayout_2.addLayout(self.horizontalLayout_6)
@@ -148,7 +148,7 @@ class Ui_Dialog(object):
         self.label_16 = QtGui.QLabel(Dialog)
         self.label_16.setObjectName(_fromUtf8("label_16"))
         self.horizontalLayout_8.addWidget(self.label_16)
-        self.tRepRate = QtGui.QLineEdit(Dialog)
+        self.tRepRate = QFNumberEdit(Dialog)
         self.tRepRate.setObjectName(_fromUtf8("tRepRate"))
         self.horizontalLayout_8.addWidget(self.tRepRate)
         spacerItem1 = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
@@ -156,7 +156,7 @@ class Ui_Dialog(object):
         self.label_14 = QtGui.QLabel(Dialog)
         self.label_14.setObjectName(_fromUtf8("label_14"))
         self.horizontalLayout_8.addWidget(self.label_14)
-        self.tTemp = QtGui.QLineEdit(Dialog)
+        self.tTemp = QINumberEdit(Dialog)
         self.tTemp.setObjectName(_fromUtf8("tTemp"))
         self.horizontalLayout_8.addWidget(self.tTemp)
         self.verticalLayout_2.addLayout(self.horizontalLayout_8)
@@ -188,7 +188,9 @@ class Ui_Dialog(object):
     def retranslateUi(self, Dialog):
         Dialog.setWindowTitle(_translate("Dialog", "Settings", None))
         self.label.setText(_translate("Dialog", "Oscilliscope GPIB", None))
+        self.cAGPIB.setToolTip(_translate("Dialog", "<html><head/><body><p>USB...</p></body></html>", None))
         self.label_2.setText(_translate("Dialog", "SPEX GPIB", None))
+        self.cSGPIB.setToolTip(_translate("Dialog", "<html><head/><body><p>GPIB0::4::INSTR</p></body></html>", None))
         self.label_3.setText(_translate("Dialog", "Starting WN", None))
         self.label_4.setText(_translate("Dialog", "Step", None))
         self.label_5.setText(_translate("Dialog", "Ending WN", None))
@@ -196,12 +198,20 @@ class Ui_Dialog(object):
         self.label_7.setText(_translate("Dialog", "Pyro Channel", None))
         self.label_6.setText(_translate("Dialog", "PM Channel", None))
         self.label_8.setText(_translate("Dialog", "NIR Power (mW)", None))
+        self.tNIRP.setText(_translate("Dialog", "0", None))
         self.label_12.setText(_translate("Dialog", "NIR (cm-1)", None))
+        self.tNIRLam.setText(_translate("Dialog", "0", None))
         self.label_13.setText(_translate("Dialog", "PM HV", None))
+        self.tHV.setToolTip(_translate("Dialog", "<html><head/><body><p>Automatic 10x if 700V</p></body></html>", None))
+        self.tHV.setText(_translate("Dialog", "0", None))
         self.label_9.setText(_translate("Dialog", "FEL Power (W)", None))
+        self.tFELP.setText(_translate("Dialog", "0", None))
         self.label_15.setText(_translate("Dialog", "FEL  (cm-1)", None))
+        self.tFELLam.setText(_translate("Dialog", "0", None))
         self.label_16.setText(_translate("Dialog", "Rep Rate(Hz)", None))
+        self.tRepRate.setText(_translate("Dialog", "0.75", None))
         self.label_14.setText(_translate("Dialog", "Temperature", None))
+        self.tTemp.setText(_translate("Dialog", "0", None))
         self.label_11.setText(_translate("Dialog", "Save Comments:", None))
 
 from InstsAndQt.customQt import QINumberEdit, QFNumberEdit

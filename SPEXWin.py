@@ -17,7 +17,10 @@ pg.setConfigOption('foreground', 'k')
 try:
     import visa
 except:
-    print 'Error. VISA library not installed' 
+    print 'Error. VISA library not installed'
+
+import logging
+log = logging.getLogger("SPEX")
 
 class SPEXWin(QtGui.QMainWindow):
     updateDataSig = QtCore.pyqtSignal(object)
@@ -36,7 +39,7 @@ class SPEXWin(QtGui.QMainWindow):
             self.initSettings()
         self.parent = parent
         self.initUI()
-        if SPEXInfo == None:
+        if SPEXInfo is None:
             SPEXInfo = 'Fake'
         if type(SPEXInfo) is str:
             self.settings['sGPIB'] = SPEXInfo
@@ -71,6 +74,8 @@ class SPEXWin(QtGui.QMainWindow):
         
         self.ui.bDone.clicked.connect(self.closeEvent)
         self.ui.bGo.clicked.connect(self.changeWN)
+
+        self.ui.sbGoto.setOpts(step=1, decimals=1, bounds=(11000, 15000))
         
         
         self.show()
@@ -84,6 +89,9 @@ class SPEXWin(QtGui.QMainWindow):
             print 'Error opening SPEX. Adding Fake'
             self.settings['sGPIB'] = 'Fake'
             self.SPEX = SPEX(self.settings['sGPIB'])
+        # figure out whre the spex is
+        pos = self.SPEX.stepsToWN(self.SPEX.curStep())
+        self.ui.sbGoto.setValue(pos)
             
             
     def initSettings(self):
@@ -100,16 +108,17 @@ class SPEXWin(QtGui.QMainWindow):
         self.settings = s
     
     def changeWN(self):
-        self.ui.tGotoWN.setEnabled(False)
+        self.ui.sbGoto.setEnabled(False)
         self.ui.bGo.setEnabled(False)
-        desiredWN = float(self.ui.tGotoWN.text())
+        desiredWN = float(self.ui.sbGoto.text())
 #        self.statusSig.emit([self.tWant, self.SPEX.wavenumberToSteps(desiredWN)])
-        self.tWant.setText('Wanted: ' + str(self.SPEX.wavenumberToSteps(desiredWN)))
+        self.tWant.setText('Wanted: {}'.format(desiredWN))
+        log.debug("Wanted {}wn, {} steps".format(desiredWN, self.SPEX.wavenumberToSteps(desiredWN)))
         self.SPEX.gotoWN(desiredWN)
         
 #        self.statusSig.emit([self.tGot, self.SPEX.currentPositionSteps])
-        self.tGot.setText('Got: ' + str(self.SPEX.currentPositionSteps))
-        self.ui.tGotoWN.setEnabled(True)
+        self.tGot.setText('Got: {}'.format(self.SPEX.currentPositionWN))
+        self.ui.sbGoto.setEnabled(True)
         self.ui.bGo.setEnabled(True)
         
     def updateStatusBar(self, args):
