@@ -1,16 +1,9 @@
-Have spex window open with the proper wavelength
-have spex window show wn, not steps
-change spex wn to pg spinbox
-NIRP = QILineedit?
-say when you start moving
+Fix temperature to be qflineedit
 
-plot live
-save json
-have settings initialize with proper GPIB 
-scale by HV setting
+normalize by the boxcar width
 
-start scope paused
-initialize regions
-set collection points
+Make folders based on sideband number. Add setting for parameters sweep for name
 
-lineedit for sideband number
+Check the loop where you do backlash, why would it stop at the top backlash and not move down?
+
+Check for the change of GPIB, it doesn't seem toactually change devices.
