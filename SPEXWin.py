@@ -40,10 +40,13 @@ class SPEXWin(QtGui.QMainWindow):
         self.parent = parent
         self.initUI()
         if SPEXInfo is None:
-            SPEXInfo = 'Fake'
+            SPEXInfo = 'GPIB0::4::INSTR'
         if type(SPEXInfo) is str:
             self.settings['sGPIB'] = SPEXInfo
             self.openSPEX()
+        # figure out where the spex is
+        pos = self.SPEX.stepsToWN(self.SPEX.curStep())
+        self.ui.sbGoto.setValue(pos)
             
             
         if parent:
@@ -89,9 +92,6 @@ class SPEXWin(QtGui.QMainWindow):
             print 'Error opening SPEX. Adding Fake'
             self.settings['sGPIB'] = 'Fake'
             self.SPEX = SPEX(self.settings['sGPIB'])
-        # figure out whre the spex is
-        pos = self.SPEX.stepsToWN(self.SPEX.curStep())
-        self.ui.sbGoto.setValue(pos)
             
             
     def initSettings(self):
