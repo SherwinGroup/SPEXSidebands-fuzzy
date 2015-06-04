@@ -73,7 +73,7 @@ class SPEXWin(QtGui.QMainWindow):
         res.append('Fake')
         self.settings['GPIBChoices'] = res
         self.ui.cGPIB.addItems(res)
-        self.ui.cGPIB.setCurrentIndex(res.index(self.settings['sGPIB']))
+        self.ui.cGPIB.setCurrentIndex(res.index(self.settings['sGPIB'])-1) #-1 for counting from 0
         
         self.ui.bDone.clicked.connect(self.closeEvent)
         self.ui.bGo.clicked.connect(self.changeWN)
