@@ -575,12 +575,22 @@ class MainWin(QtGui.QMainWindow):
         pmSGbounds = self.boxcarRegions[4].getRegion()
         pmSGidx = self.findIndices(pmSGbounds, pmD[:,0])
         
-        pyBG = spi.simps(pyD[pyBGidx[0]:pyBGidx[1],1], pyD[pyBGidx[0]:pyBGidx[1], 0])
-        pyFP = spi.simps(pyD[pyFPidx[0]:pyFPidx[1],1], pyD[pyFPidx[0]:pyFPidx[1], 0])
-        pyCD = spi.simps(pyD[pyCDidx[0]:pyCDidx[1],1], pyD[pyCDidx[0]:pyCDidx[1], 0])
+        pyBG = spi.simps(pyD[pyBGidx[0]:pyBGidx[1],1], pyD[pyBGidx[0]:pyBGidx[1], 0])/(
+            pyBGidx[1] - pyBGidx[0]
+        )
+        pyFP = spi.simps(pyD[pyFPidx[0]:pyFPidx[1],1], pyD[pyFPidx[0]:pyFPidx[1], 0])/(
+            pyFPidx[1] - pyFPidx[0]
+        )
+        pyCD = spi.simps(pyD[pyCDidx[0]:pyCDidx[1],1], pyD[pyCDidx[0]:pyCDidx[1], 0])/(
+            pyCDidx[1] - pyCDidx[0]
+        )
         
-        pmBG = spi.simps(pmD[pmBGidx[0]:pmBGidx[1],1], pmD[pmBGidx[0]:pmBGidx[1], 0])
-        pmSG = spi.simps(pmD[pmSGidx[0]:pmSGidx[1],1], pmD[pmSGidx[0]:pmSGidx[1], 0])
+        pmBG = spi.simps(pmD[pmBGidx[0]:pmBGidx[1],1], pmD[pmBGidx[0]:pmBGidx[1], 0])/(
+            pmBGidx[1] - pmBGidx[0]
+        )
+        pmSG = spi.simps(pmD[pmSGidx[0]:pmSGidx[1],1], pmD[pmSGidx[0]:pmSGidx[1], 0])/(
+            pmSGidx[1] - pmSGidx[0]
+        )
         
         return pyFP-pyBG, pyCD-pyBG, pmSG-pmBG
 
