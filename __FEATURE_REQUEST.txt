@@ -1,9 +1,1 @@
-Fix temperature to be qflineedit
-
-normalize by the boxcar width
-
-Make folders based on sideband number. Add setting for parameters sweep for name
-
 Check the loop where you do backlash, why would it stop at the top backlash and not move down?
-
-Check for the change of GPIB, it doesn't seem toactually change devices.

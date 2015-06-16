@@ -79,20 +79,28 @@ class SPEXWin(QtGui.QMainWindow):
         self.ui.bGo.clicked.connect(self.changeWN)
 
         self.ui.sbGoto.setOpts(step=1, decimals=1, bounds=(11000, 15000))
-        
+        self.ui.cGPIB.currentIndexChanged.connect(self.openSPEX)
         
         self.show()
     
     
     def openSPEX(self):
         try:
-            self.SPEX = SPEX(self.settings['sGPIB'])
+            self.SPEX.close()
+        except:
+            pass
+        try:
+            self.SPEX = SPEX(str(self.ui.cGPIB.currentText()))
             print 'SPEX opened'
         except:
             print 'Error opening SPEX. Adding Fake'
             self.settings['sGPIB'] = 'Fake'
-            self.SPEX = SPEX(self.settings['sGPIB'])
-            
+            self.SPEX = SPEX("Fake")
+            self.ui.cGPIB.currentIndexChanged.disconnect(self.openSPEX)
+            self.ui.cGPIB.setCurrentIndex(
+                self.ui.cGPIB.findText("Fake")
+            )
+            self.ui.cGPIB.currentIndexChanged.connect(self.openSPEX)
             
     def initSettings(self):
         #Initializes all the settings for the window in one tidy location,

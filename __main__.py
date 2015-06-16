@@ -27,6 +27,14 @@ try:
 except:
     print 'Error. VISA library not installed'
 
+# http://stackoverflow.com/questions/1551605/how-to-set-applications-taskbar-icon-in-windows-7/1552105#1552105
+# Don't want python app window to clump
+# with the other windows
+import ctypes, os
+if os.name is not "posix":
+    myappid = 'Sherwin.Group.SPEXSidebands.100' # arbitrary string
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+
 
 import logging
 log = logging.getLogger("SPEX")
@@ -36,6 +44,37 @@ handler1.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - [%(filename)s:%(lineno)s - %(funcName)s()] - %(levelname)s - %(message)s')
 handler1.setFormatter(formatter)
 log.addHandler(handler1)
+
+
+"""
+Calibrating the NE20A filters:
+
+15-06-15 The two filters were calibrated, data can
+be found in
+Z:\Darren\Data\2015\06-15 NE20A Abs\Spectra\[Near|Mid|Far]
+
+The data for each filterwas plotted as a function of
+Transmission vs. wavenumber and fit to a 5th degree polynomial.
+The functions are given in the below so that transmission
+can easily be calculated, as a function of frequency,
+at run time. Indices correspond to the indices in the UI.
+If the UI changes, they'll need to change here, too
+"""
+pWhite = [-2.97045540918e-17, 2.00599886468e-12, -5.41806328661e-08, 0.000731592080792, -4.93857760694, 13333.1270622]
+pBlue = [-2.16704620823e-17, 1.46608380885e-12, -3.96693766801e-08, 0.000536611905244, -3.62883313875, 9814.37461508]
+from scipy import polyval as pv
+filterFits = list([lambda x: 1,             # No filter
+                  lambda x: pv(pWhite, x), # white label
+                  lambda x: pv(pBlue, x)])  # Blue label
+filterFits.append(lambda x:
+                  filterFits[1](x) * filterFits[2](x)) #Both labels
+
+filterNames = [
+    "None",
+    "White Filter",
+    "Blue Filter",
+    "Both Filters"
+]
 
 class MainWin(QtGui.QMainWindow):
     #emits when oscilloscope is done taking data so that
@@ -96,7 +135,7 @@ class MainWin(QtGui.QMainWindow):
         self.pScan = self.ui.gScan.plot(pen='k')
         plotitem = self.ui.gScan.getPlotItem()
         plotitem.setLabel('top',text='PMT')
-        plotitem.setLabel('left',text='Integrated Voltage',units='V.s')
+        plotitem.setLabel('left',text='Integrated Voltage',units='V')
         plotitem.setLabel('bottom',text='Wavenumber')
         
         self.initLinearRegionBounds()
@@ -156,7 +195,7 @@ class MainWin(QtGui.QMainWindow):
         s['GPIBChoices'].append("Fake")
         s['aGPIB'] = 'USB0::0x0957::0x1734::MY44007041::INSTR' if 'USB0::0x0957::0x1734::MY44007041::INSTR' in s['GPIBChoices'] else "Fake"#GPIB of the agilent
         s['sGPIB'] = 'GPIB0::4::INSTR' if 'GPIB0::4::INSTR' in s['GPIBChoices'] else "Fake"#'GPIB0::4::INSTR' #GPIB of the SPEX
-        s['pyCh'] = 4  #Osc channel for the pyro
+        s['pyCh'] = 3  #Osc channel for the pyro
         s['pmCh'] = 2  #osc channel for the pmt
         
         #saving settings
@@ -168,14 +207,18 @@ class MainWin(QtGui.QMainWindow):
         s['fel_power'] = 0 #FEL power
         s['fel_lambda'] = 0 #FEL wavenumber
         s['temperature'] = 0
-        s['pm_hv'] = 0 #PMT voltage
+        s['pm_hv'] = 700 #PMT voltage
+        s["filter"] = 0 # Which filter is in place?
         s['fel_reprate'] = 0.75
+
+        s["autoSBN"] = -2 # automatic sideband, desired sb
+        s["autoSBW"] = 4  # automatic SB, desired width
         
         #scan settings
         s['startWN'] = 0 #Starting wavenumber
         s['stepWN'] = 0 #how many wavenumbers to steop by
         s['endWN'] = 0 #Ending wavenumber
-        s['ave'] = 1 #How many values to take an average of
+        s['ave'] = 10 #How many values to take an average of
         
         #running flags
         #Pausing causes the oscilloscope reading loop to wait until we are unpaused
@@ -367,6 +410,12 @@ class MainWin(QtGui.QMainWindow):
         s['fel_lambda'] = self.settings['fel_lambda']
         s['fel_reprate'] = self.settings['fel_reprate']
         s['temperature'] = self.settings['temperature']
+        s["filter"] = filterNames[self.settings["filter"]]
+        aveWN = np.mean(self.settings["allData"][:,0])
+        # add the actual transmission used, useful if you want
+        # to get the actual scope voltage by multiplying by
+        # this transmission
+        s["filterTrans"] = filterFits[self.settings["filter"]](aveWN)
 
         self.settings['saveComments']
         st = str(self.ui.tSidebandNumber.text()) + "\n"
@@ -442,11 +491,11 @@ class MainWin(QtGui.QMainWindow):
         self.Agil.write("STOP")
         self.Agil.write(":WAV:POIN:MODE MAX")
         self.Agil.write(":WAV:POIN 10000")
+        if isPaused:
+            self.togglePause(True)
             
         self.scopeCollectionThread = threading.Thread(target = self.collectScopeLoop)
         self.scopeCollectionThread.start()
-        if isPaused:
-            self.togglePause(True)
 
     def startScan(self):
         if self.settings['nir_power'] == -1.0:
@@ -497,8 +546,13 @@ class MainWin(QtGui.QMainWindow):
                 self.updateDataSig.connect(self.waitingForDataLoop.exit)
                 self.waitingForDataLoop.exec_()
                 refFP, refCD, sig = self.integrateData()
+
                 mult = 10 if self.settings['pm_hv']==700 else 1
                 sig *= mult # to account for the difference between 700 V and 1kV
+
+                # also account for the attenuation due to the filters
+                T = filterFits[self.settings["filter"]](wavenumber)
+                sig /= T
 
                 self.boxcarSig.emit(refFP, refCD, sig)
                 isValid = True #Flag for telling whether to keep the data or not
@@ -559,6 +613,8 @@ class MainWin(QtGui.QMainWindow):
             time.sleep(0.01)
             pyD = self.settings['pyData']
             pmD = self.settings['pmData']
+
+        dt = np.diff(pyD[:2,0])[0]
         
         pyBGbounds = self.boxcarRegions[0].getRegion()
         pyBGidx = self.findIndices(pyBGbounds, pyD[:,0])
@@ -577,20 +633,20 @@ class MainWin(QtGui.QMainWindow):
         
         pyBG = spi.simps(pyD[pyBGidx[0]:pyBGidx[1],1], pyD[pyBGidx[0]:pyBGidx[1], 0])/(
             pyBGidx[1] - pyBGidx[0]
-        )
+        )/dt
         pyFP = spi.simps(pyD[pyFPidx[0]:pyFPidx[1],1], pyD[pyFPidx[0]:pyFPidx[1], 0])/(
             pyFPidx[1] - pyFPidx[0]
-        )
+        )/dt
         pyCD = spi.simps(pyD[pyCDidx[0]:pyCDidx[1],1], pyD[pyCDidx[0]:pyCDidx[1], 0])/(
             pyCDidx[1] - pyCDidx[0]
-        )
+        )/dt
         
         pmBG = spi.simps(pmD[pmBGidx[0]:pmBGidx[1],1], pmD[pmBGidx[0]:pmBGidx[1], 0])/(
             pmBGidx[1] - pmBGidx[0]
-        )
+        )/dt
         pmSG = spi.simps(pmD[pmSGidx[0]:pmSGidx[1],1], pmD[pmSGidx[0]:pmSGidx[1], 0])/(
             pmSGidx[1] - pmSGidx[0]
-        )
+        )/dt
         
         return pyFP-pyBG, pyCD-pyBG, pmSG-pmBG
 
@@ -700,6 +756,17 @@ class SettingsDialog(QtGui.QDialog):
     def __init__(self, parent = None, settings=None):
         super(SettingsDialog, self).__init__(parent)
         self.initUI(settings)
+        self.calcSBBoxes = [ #Easy iteration list
+            self.ui.tFELLam,
+            self.ui.tGotoBound,
+            self.ui.tGotoSB
+        ]
+        [i.textAccepted.connect(self.calcAutoSB) for i in self.calcSBBoxes]
+        # Want this to be connected to something else so
+        # you can parse a nm input
+        self.ui.tNIRLam.textAccepted.connect(self.calcNIRLam)
+        # But still want to iterate over later
+        self.calcSBBoxes.append(self.ui.tNIRLam)
         
     def initUI(self, settings):
         self.ui = Ui_Dialog()
@@ -716,15 +783,25 @@ class SettingsDialog(QtGui.QDialog):
         self.ui.tStepWN.setText(str(settings['stepWN']))
         self.ui.tEndWN.setText(str(settings['endWN']))
         self.ui.tAverages.setText(str(settings['ave']))
+
         
         self.ui.cPyroCh.insertItems(0, ['1', '2', '3', '4'])
         self.ui.cPyroCh.setCurrentIndex(settings['pyCh']-1)
         self.ui.cPMCh.insertItems(0, ['1', '2', '3', '4'])
         self.ui.cPMCh.setCurrentIndex(settings['pmCh']-1)
+
+        self.ui.tGotoBound.setText(str(settings["autoSBW"]))
+        self.ui.tGotoSB.setText(str(settings["autoSBN"]))
         
         self.ui.tNIRP.setText(str(settings['nir_power']))
         self.ui.tNIRLam.setText(str(settings['nir_lambda']))
-        self.ui.tHV.setText(str(settings['pm_hv']))
+        self.ui.cbPMHV.setCurrentIndex(
+            self.ui.cbPMHV.findText(str(settings["pm_hv"]))
+        )
+        self.ui.cbNDFilters.setCurrentIndex(
+            settings["filter"]
+        )
+
         self.ui.tFELP.setText(str(settings['fel_power']))
         self.ui.tFELLam.setText(str(settings['fel_lambda']))
         self.ui.tRepRate.setText(str(settings['fel_reprate']))
@@ -751,13 +828,33 @@ class SettingsDialog(QtGui.QDialog):
         settings['pmCh'] = int(dialog.ui.cPMCh.currentText())
         settings['nir_power'] = dialog.ui.tNIRP.value()
         settings['nir_lambda'] = dialog.ui.tNIRLam.value()
-        settings['pm_hv'] = dialog.ui.tHV.value()
+        settings['pm_hv'] = int(dialog.ui.cbPMHV.currentText())
+        settings["filter"] = dialog.ui.cbNDFilters.currentIndex()
+        settings["autoSBN"] = int(dialog.ui.tGotoSB.value())
+        settings["autoSBW"] = int(dialog.ui.tGotoBound.value())
         settings['fel_power'] = dialog.ui.tFELP.value()
         settings['fel_lambda'] = dialog.ui.tFELLam.value()
         settings['fel_reprate'] = dialog.ui.tRepRate.value()
         settings['temperature'] = dialog.ui.tTemp.value()
         settings['saveComments'] = str(dialog.ui.tSaveComments.toPlainText())
         return (settings, result==QtGui.QDialog.Accepted)
+
+    def calcAutoSB(self):
+        if 0 in [int(i.value()) for i in self.calcSBBoxes]:
+            return
+        sbWN = self.ui.tNIRLam.value() + \
+               self.ui.tFELLam.value() * self.ui.tGotoSB.value()
+        bound = self.ui.tGotoBound.value()
+
+        self.ui.tStartWN.setText(str(int(sbWN + bound)))
+        self.ui.tStepWN.setText("-1")
+        self.ui.tEndWN.setText(str(int(sbWN - bound)))
+
+
+    def calcNIRLam(self, val):
+        if val<10000:
+            self.ui.tNIRLam.setText("{:.1f}".format(10000000/val))
+        self.calcAutoSB()
 
 
 
