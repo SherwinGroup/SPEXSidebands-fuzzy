@@ -354,6 +354,13 @@ class MainWin(QtGui.QMainWindow):
             return
         self.linearRegionTextBoxes[i][0].setText('{:.9g}'.format(sender.getRegion()[0]))
         self.linearRegionTextBoxes[i][1].setText('{:.9g}'.format(sender.getRegion()[1]))
+
+        # Restrict it so the sideband signal is always 40ns
+        # (width of the cavity dump)
+        if sendidx == 4:
+            a = list(sender.getRegion())
+            a[1] = a[0]+40e-9
+            sender.setRegion(a)
             
     def updateLinearRegionsFromText(self):
         sender = self.sender()
@@ -367,20 +374,24 @@ class MainWin(QtGui.QMainWindow):
         
         i = sendi
         j = sendj
+        if i==4 and j==1:
+            sender.setText(str(
+                float(self.linearRegionTextBoxes[-1][0].text())+40e-9
+            ))
         curVals = list(self.boxcarRegions[i].getRegion())
         curVals[j] = float(sender.text())
         self.boxcarRegions[i].setRegion(tuple(curVals))
 
     def initRegions(self):
         sent = self.sender()
-        linearRegions = self.linearRegionTextBoxes[0:3] # the ones for the pyro
+        boxcarRegions = self.boxcarRegions[0:3] # the ones for the pyro
         try:
             length = len(self.settings['pyData'])
             point = self.settings['pyData'][length/2,0]
         except:
             return
         if sent is self.ui.bInitPMT:
-            linearRegions = self.linearRegionTextBoxes[-2:] # the ones for the PMT
+            boxcarRegions = self.boxcarRegions[-2:] # the ones for the PMT
             try:
                 length = len(self.settings['pmData'])
                 point = self.settings['pmData'][length/2,0]
@@ -388,8 +399,9 @@ class MainWin(QtGui.QMainWindow):
                 return
 
         # set all of the linear regions
-        [[i.setText(str(point)) for i in j] for j in zip(*linearRegions)]
-        [[i.setText(str(point)) for i in j] for j in zip(*linearRegions)]
+        # [[i.setText(str(point)) for i in j] for j in zip(*linearRegions)]
+        # [[i.setText(str(point)) for i in j] for j in zip(*linearRegions)]
+        [i.setRegion((point, point)) for i in boxcarRegions]
 
 
         
