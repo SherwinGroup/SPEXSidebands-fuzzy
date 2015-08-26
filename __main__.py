@@ -459,9 +459,9 @@ class MainWin(QtGui.QMainWindow):
 
         num = str(len(files) * num) if len(files)>0 else ''
         np.savetxt(self.settings['saveLocation'] + str(self.ui.tSaveName.text()) + '_signalWaveform' + num + '.txt',
-                   pyro, header = self.genSaveHeader()+'Voltage (V), Time(s)')
-        np.savetxt(self.settings['saveLocation'] + str(self.ui.tSaveName.text()) + '_signalWaveform.txt',
                    sig, header = self.genSaveHeader()+'Voltage (V), Time(s)')
+        # np.savetxt(self.settings['saveLocation'] + str(self.ui.tSaveName.text()) + '_signalWaveform.txt',
+        #            sig, header = self.genSaveHeader()+'Voltage (V), Time(s)')
         
     
     def openSPEX(self):
@@ -582,6 +582,11 @@ class MainWin(QtGui.QMainWindow):
         num = 1
         files = glob.glob(self.settings['saveLocation'] + str(self.ui.tSaveName.text()) + '_scanData*.txt')
         num = str(len(files) * num) if len(files)>0 else ''
+        filename = str(self.ui.tSaveName.text())
+        sb = str(self.ui.tSidebandNumber.text())
+        if sb: # string is not empty
+            pass
+
         np.savetxt(self.settings['saveLocation'] + str(self.ui.tSaveName.text()) + '_scanData' + num + '.txt',
                    self.settings['allData'],
                    header = self.genSaveHeader() +  'Wavenumber, Integrated front porch, Integrated Cavity dump, integrated signal')
