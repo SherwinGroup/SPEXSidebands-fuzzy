@@ -49,19 +49,22 @@ log.addHandler(handler1)
 """
 Calibrating the NE20A filters:
 
-15-06-15 The two filters were calibrated, data can
+15-08-26 The two filters were calibrated, data can
 be found in
-Z:\Darren\Data\2015\06-15 NE20A Abs\Spectra\[Near|Mid|Far]
+Z:\Darren\Data\2015\08-26 Recalibrating NE20A\Spectra
+and analysis of the data at
+Z:\Darren\Analysis\2015\08-26 Calibrating NE20As take 2
+
 
 The data for each filterwas plotted as a function of
-Transmission vs. wavenumber and fit to a 5th degree polynomial.
+Transmission vs. wavenumber and fit to a cubic polynomial.
 The functions are given in the below so that transmission
 can easily be calculated, as a function of frequency,
 at run time. Indices correspond to the indices in the UI.
 If the UI changes, they'll need to change here, too
 """
-pWhite = [-2.97045540918e-17, 2.00599886468e-12, -5.41806328661e-08, 0.000731592080792, -4.93857760694, 13333.1270622]
-pBlue = [-2.16704620823e-17, 1.46608380885e-12, -3.96693766801e-08, 0.000536611905244, -3.62883313875, 9814.37461508]
+pWhite = [-8.34934154867e-13, 2.81035287487e-08, -0.000309307365003]
+pBlue = [-9.84381907301e-13, 3.43549128432e-08, -0.00039602971404]
 from scipy import polyval as pv
 filterFits = list([lambda x: 1,             # No filter
                   lambda x: pv(pWhite, x), # white label
@@ -75,6 +78,30 @@ filterNames = [
     "Blue Filter",
     "Both Filters"
 ]
+
+# Want to be able to print a message or warning if using the filters outside
+# of a calibrated range. Might not ever be necessary, but still comforting
+# to implement
+
+class TestRegion(object):
+    """
+    Convenience class to test whether a number falls within
+    a range. I don't feel like constantly writing
+    if a<x<b, maybe it'll look prettier to call a descriptive
+    method?>
+    """
+    def __init__(self, lb, ub):
+        self.lb = float(lb)
+        self.ub = float(ub)
+    def contains(self, x):
+        return self.lb <= x <= self.ub
+
+    def __call__(self, *args, **kwargs):
+        # in case you just want ot call it directly?
+        return self.contains(args[0])
+
+whiteGoodRegion = TestRegion(12000, 14100)
+blueGoodRegion = TestRegion(12375, 14100)
 
 class MainWin(QtGui.QMainWindow):
     #emits when oscilloscope is done taking data so that
@@ -872,6 +899,10 @@ class SettingsDialog(QtGui.QDialog):
         if val<10000:
             self.ui.tNIRLam.setText("{:.1f}".format(10000000/val))
         self.calcAutoSB()
+
+class MessageDialog(QtGui.QDialog):
+    def __init__(self, parent, message, time=3000):
+        super(MessageDialog, self).__init__(self, parent)
 
 
 
