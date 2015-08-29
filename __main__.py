@@ -14,11 +14,14 @@ import time
 import copy
 try:
     from InstsAndQt.Instruments import SPEX, Agilent6000
+    import InstsAndQt.Instruments
+    InstsAndQt.Instruments.PRINT_OUTPUT = False
 except Exception as e:
     raise IOError('Instrument library not found. Often placed in another directory')
 from SPEXWin import SPEXWin
 from MainWindow_ui import Ui_MainWindow
-from Settings_ui import Ui_Dialog
+from Settings_ui import Ui_Settings
+from QuickSettings_ui import Ui_QuickSettings
 import pyqtgraph as pg
 pg.setConfigOption('background', 'w')
 pg.setConfigOption('foreground', 'k')
@@ -94,7 +97,19 @@ class TestRegion(object):
         self.lb = float(lb)
         self.ub = float(ub)
     def contains(self, x):
-        return self.lb <= x <= self.ub
+        if isinstance(x, (int, float)):
+            return self.lb <= x <= self.ub
+        elif isinstance(x, np.ndarray):
+            return np.logical_and(self.lb<x, x<self.ub).all()
+        elif hasattr(x, '__iter__'):
+            for ii in x:
+                if not self.lb<=ii<=self.ub:
+                    return False
+            return True
+        else:
+            log.warning("Unknown value passed to comparator\n\t{}".format(x))
+            return False
+
 
     def __call__(self, *args, **kwargs):
         # in case you just want ot call it directly?
@@ -102,6 +117,13 @@ class TestRegion(object):
 
 whiteGoodRegion = TestRegion(12000, 14100)
 blueGoodRegion = TestRegion(12375, 14100)
+
+# Need a global reference for keeping the
+# dialog popups, to prevent garbage collection
+# Less stressful than having to manage class
+# references
+dialogList = []
+
 
 class MainWin(QtGui.QMainWindow):
     #emits when oscilloscope is done taking data so that
@@ -111,7 +133,7 @@ class MainWin(QtGui.QMainWindow):
     #Either a string or array of [str, int]
     #where str is message and int is time (ms) to display
     statusSig = QtCore.pyqtSignal(object)
-    #Emits data from the oscilloscope. Updates graphs
+    #Emits data from the oscillscope. Updates graphs
     pyDataSig = QtCore.pyqtSignal(object)
     pmDataSig = QtCore.pyqtSignal(object)
     #emits the wavenumber changes so a child'ed SPEXWin can update.
@@ -183,6 +205,7 @@ class MainWin(QtGui.QMainWindow):
         
         
         self.ui.bChooseDirectory.clicked.connect(self.updateSaveLoc)
+        self.ui.bQuickStart.clicked.connect(self.quickStartScan)
         self.ui.bStart.clicked.connect(self.startScan)
         self.ui.bPause.clicked[bool].connect(self.togglePause)
         self.ui.bPause.setChecked(True)
@@ -238,7 +261,7 @@ class MainWin(QtGui.QMainWindow):
         s["filter"] = 0 # Which filter is in place?
         s['fel_reprate'] = 0.75
 
-        s["autoSBN"] = -2 # automatic sideband, desired sb
+        s["autoSBN"] = 2 # automatic sideband, desired sb
         s["autoSBW"] = 4  # automatic SB, desired width
         
         #scan settings
@@ -328,8 +351,14 @@ class MainWin(QtGui.QMainWindow):
         #thus changing the values and we're unable to see whether things have changed.
         newSettings, ok = SettingsDialog.getSettings(self, copy.copy(self.settings))
         if not ok:
-            print 'canceled'
             return
+
+        # Update the sideband textbox if you used the
+        # autocalculator to move to a new one.
+        if not self.settings["autoSBN"] == newSettings["autoSBN"]:
+            self.ui.tSidebandNumber.setText(str(newSettings["autoSBN"]))
+
+
         
         #Need to check to see if the GPIB values changed so we can update them.
         #The opening procedure opens a fake isntrument if things go wrong, which 
@@ -536,7 +565,7 @@ class MainWin(QtGui.QMainWindow):
         self.scopeCollectionThread = threading.Thread(target = self.collectScopeLoop)
         self.scopeCollectionThread.start()
 
-    def startScan(self):
+    def quickStartScan(self):
         if self.settings['nir_power'] == -1.0:
             self.settings['startWN'] = 13160
             self.settings['stepWN'] = -1
@@ -544,7 +573,20 @@ class MainWin(QtGui.QMainWindow):
             self.settings['ave'] = 3
         elif self.settings['stepWN'] == 0:
             self.statusSig.emit(['Please initialize scan settings', 10000])
+            MessageDialog(self, "Please initialize scan settings.", 3000)
             return
+
+        if self.settings["filter"] & filterNames.index("White Filter") and \
+            not whiteGoodRegion.contains([self.settings["startWN"], self.settings["endWN"]]):
+            print "made white box"
+            MessageDialog("Caution: Outside calibration region\nfor white filter")
+
+        if self.settings["filter"] & filterNames.index("Blue Filter") and \
+            not blueGoodRegion.contains([self.settings["startWN"], self.settings["endWN"]]):
+            print "made blue box"
+            MessageDialog("Caution: Outside calibration region\nfor blue filter")
+
+
         
         #wavenumber, ref FP, ref CD, signal
         self.settings['allData'] = np.empty((0,4))
@@ -552,11 +594,39 @@ class MainWin(QtGui.QMainWindow):
         self.updateScan() # clear the graph
         self.settings['runningScan'] = True
         self.ui.bStart.setEnabled(False)
+        self.ui.bQuickStart.setEnabled(False)
         self.statusSig.emit(['Starting Scan', 3000])
         
         self.scanRunningThread = threading.Thread(target = self.runScanLoop)
         self.scanRunningThread.start()
-        
+
+    def startScan(self):
+        """
+        Called to open up settings to confirm
+        PM HV and filters, which we often fuck up.
+        :return:
+        """
+        sets, ok = QuickSettingsDialog.getSettings(self, self.settings)
+        if not ok:
+            return
+
+        # Update the sideband textbox if you used the
+        # autocalculator to move to a new one.
+
+        print self.settings["autoSBN"], sets["autoSBN"]
+
+        if not self.settings["autoSBN"] == sets["autoSBN"]:
+            self.ui.tSidebandNumber.setText(str(sets["autoSBN"]))
+
+        self.settings.update(sets)
+
+        #enforce the correct sign
+        self.settings['stepWN'] = np.sign(self.settings['endWN']-self.settings['startWN'])*np.abs(
+                    self.settings['stepWN'])
+
+
+        self.quickStartScan()
+
     def runScanLoop(self):
         WNRange = np.arange(self.settings['startWN'],
                                 self.settings['endWN'], self.settings['stepWN'])
@@ -604,24 +674,38 @@ class MainWin(QtGui.QMainWindow):
                     self.statusSig.emit(['Wavenumber: {}. No. {}'.format(wavenumber, num), 0])
             
             
-        
-        #save Data. Check if there are any in the folder yet
-        num = 1
-        files = glob.glob(self.settings['saveLocation'] + str(self.ui.tSaveName.text()) + '_scanData*.txt')
-        num = str(len(files) * num) if len(files)>0 else ''
+
         filename = str(self.ui.tSaveName.text())
+
+        # Automatically add the sideband to the filename,
+        # using 'p' or 'm' prefix for positive or negative
+        # (since you can't use '-6' and '+6' in filenames
         sb = str(self.ui.tSidebandNumber.text())
         if sb: # string is not empty
-            pass
+            if int(sb)>=0:
+                filename += '_p{}'.format(abs(int(sb)))
+            else:
+                filename += '_m{}'.format(abs(int(sb)))
 
-        np.savetxt(self.settings['saveLocation'] + str(self.ui.tSaveName.text()) + '_scanData' + num + '.txt',
+        filename += '_scanData'
+
+        #save Data. Check if there are any in the folder yet
+        files = glob.glob(os.path.join(self.settings['saveLocation'], filename + '*.txt'))
+        num = len(files)
+
+        np.savetxt(self.settings['saveLocation'] + filename + '{}.txt'.format(num),
                    self.settings['allData'],
                    header = self.genSaveHeader() +  'Wavenumber, Integrated front porch, Integrated Cavity dump, integrated signal')
+
+        # np.savetxt(self.settings['saveLocation'] + str(self.ui.tSaveName.text()) + '_scanData' + num + '.txt',
+        #            self.settings['allData'],
+        #            header = self.genSaveHeader() +  'Wavenumber, Integrated front porch, Integrated Cavity dump, integrated signal')
         
         #clean up after done
         self.settings['collectingData'] = False
         self.settings['runningScan'] = False
         self.ui.bStart.setEnabled(True)
+        self.ui.bQuickStart.setEnabled(True)
         self.statusSig.emit(['Done', 3000])
             
     def updateBoxcarTexts(self, v1, v2, v3):
@@ -796,6 +880,87 @@ class MainWin(QtGui.QMainWindow):
         self.close()
 
 
+class QuickSettingsDialog(QtGui.QDialog):
+    def __init__(self, parent = None, settings=None):
+        super(QuickSettingsDialog, self).__init__(parent)
+        self.initUI(settings)
+
+        self.FELLam = settings["fel_lambda"]
+        self.NIRLam = settings["nir_lambda"]
+
+        if self.FELLam * self.NIRLam > 0: # both are non-zero
+            self.calcSBBoxes = [ #Easy iteration list
+                self.ui.tGotoBound,
+                self.ui.tGotoSB
+            ]
+            [i.textAccepted.connect(self.calcAutoSB) for i in self.calcSBBoxes]
+
+
+    def initUI(self, settings):
+        self.ui = Ui_QuickSettings()
+        self.ui.setupUi(self)
+
+        self.ui.tStartWN.setText(str(settings['startWN']))
+        self.ui.tStepWN.setText(str(settings['stepWN']))
+        self.ui.tEndWN.setText(str(settings['endWN']))
+        self.ui.tAverages.setText(str(settings['ave']))
+
+
+
+        self.ui.tGotoBound.setText(str(settings["autoSBW"]))
+        self.ui.tGotoSB.setText(str(settings["autoSBN"]))
+
+        self.ui.cbPMHV.setCurrentIndex(
+            self.ui.cbPMHV.findText(str(settings["pm_hv"]))
+        )
+        self.ui.cbNDFilters.setCurrentIndex(
+            settings["filter"]
+        )
+
+        if settings['runningScan']:
+            self.ui.tAverages.setEnabled(False)
+            self.ui.tStartWN.setEnabled(False)
+            self.ui.tStepWN.setEnabled(False)
+            self.ui.tEndWN.setEnabled(False)
+
+    @staticmethod
+    def getSettings(parent = None, settings = None):
+        dialog = QuickSettingsDialog(parent, settings)
+        result = dialog.exec_()
+
+        s = dict()
+        s['startWN'] = dialog.ui.tStartWN.value()
+        s['stepWN'] = dialog.ui.tStepWN.value()
+        s['endWN'] = dialog.ui.tEndWN.value()
+        s['ave'] = dialog.ui.tAverages.value()
+
+        s['pm_hv'] = int(dialog.ui.cbPMHV.currentText())
+        s["filter"] = dialog.ui.cbNDFilters.currentIndex()
+
+        s["autoSBN"] = int(dialog.ui.tGotoSB.value())
+        s["autoSBW"] = int(dialog.ui.tGotoBound.value())
+
+        return (s, result==QtGui.QDialog.Accepted)
+
+    def calcAutoSB(self):
+        if 0 in [int(i.value()) for i in self.calcSBBoxes]:
+            return
+
+
+        sbWN = self.NIRLam + \
+               self.FELLam * self.ui.tGotoSB.value()
+        bound = self.ui.tGotoBound.value()
+
+        self.ui.tStartWN.setText(str(int(sbWN + bound)))
+        self.ui.tStepWN.setText("-1")
+        self.ui.tEndWN.setText(str(int(sbWN - bound)))
+
+
+    def calcNIRLam(self, val):
+        if val<10000:
+            self.ui.tNIRLam.setText("{:.1f}".format(10000000./val))
+        self.calcAutoSB()
+
 class SettingsDialog(QtGui.QDialog):
     def __init__(self, parent = None, settings=None):
         super(SettingsDialog, self).__init__(parent)
@@ -813,7 +978,7 @@ class SettingsDialog(QtGui.QDialog):
         self.calcSBBoxes.append(self.ui.tNIRLam)
         
     def initUI(self, settings):
-        self.ui = Ui_Dialog()
+        self.ui = Ui_Settings()
         self.ui.setupUi(self)
         self.ui.cAGPIB.insertItems(0, settings['GPIBChoices'])
         self.ui.cAGPIB.setCurrentIndex(
@@ -901,8 +1066,30 @@ class SettingsDialog(QtGui.QDialog):
         self.calcAutoSB()
 
 class MessageDialog(QtGui.QDialog):
-    def __init__(self, parent, message, time=3000):
-        super(MessageDialog, self).__init__(self, parent)
+    def __init__(self, parent, message="", duration=3000):
+        if isinstance(parent, str):
+            message = parent
+            parent = None
+        super(MessageDialog, self).__init__(parent=parent)
+        layout  = QtGui.QVBoxLayout(self)
+        text = QtGui.QLabel("<font size='6'>{}</font>".format(message), self)
+        layout.addWidget(text)
+        self.setLayout(layout)
+        self.setModal(False)
+
+        dialogList.append(self)
+
+        self.timer = QtCore.QTimer.singleShot(duration, self.close)
+        self.show()
+        self.raise_()
+
+    def close(self):
+        try:
+            dialogList.remove(self)
+        except Exception as E:
+            print "ERror removing from list, ",E
+
+        super(MessageDialog, self).close()
 
 
 
