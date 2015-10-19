@@ -6,6 +6,7 @@ Created on Tue Feb 03 12:53:22 2015
 
 import numpy as np
 import scipy.integrate as spi
+from scipy.interpolate import interp1d
 from PyQt4 import QtGui, QtCore
 import threading
 import json
@@ -66,6 +67,13 @@ can easily be calculated, as a function of frequency,
 at run time. Indices correspond to the indices in the UI.
 If the UI changes, they'll need to change here, too
 """
+# Text file with the three filters [Wavelength (nm), Mr. Blue, Mr. White, Three sisters] raw transmission values
+ndFilters_trans = np.loadtxt('NDfilter_stats.txt', comments='#', delimiter=',')
+# The linear interpolation function of the three ND filters we use
+mrBlue = interp1d(ndFilters_trans[:, 0], ndFilters_trans[:, 1]) # NE20A filter with blue 'A'
+mrWhite = interp1d(ndFilters_trans[:, 0], ndFilters_trans[:, 2]) # NE20A filter with no coloring
+threeSisters = interp1d(ndFilters_trans[:, 0], ndFilters_trans[:, 3]) # Combination of three ND filters
+'''
 pWhite = [-8.34934154867e-13, 2.81035287487e-08, -0.000309307365003, 1.14]
 pBlue = [-9.84381907301e-13, 3.43549128432e-08, -0.00039602971404, 1.54]
 from scipy import polyval as pv
@@ -81,7 +89,7 @@ filterNames = [
     "Blue Filter",
     "Both Filters"
 ]
-
+'''
 # Want to be able to print a message or warning if using the filters outside
 # of a calibrated range. Might not ever be necessary, but still comforting
 # to implement
