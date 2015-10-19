@@ -66,8 +66,8 @@ can easily be calculated, as a function of frequency,
 at run time. Indices correspond to the indices in the UI.
 If the UI changes, they'll need to change here, too
 """
-pWhite = [-8.34934154867e-13, 2.81035287487e-08, -0.000309307365003]
-pBlue = [-9.84381907301e-13, 3.43549128432e-08, -0.00039602971404]
+pWhite = [-8.34934154867e-13, 2.81035287487e-08, -0.000309307365003, 1.14]
+pBlue = [-9.84381907301e-13, 3.43549128432e-08, -0.00039602971404, 1.54]
 from scipy import polyval as pv
 filterFits = list([lambda x: 1,             # No filter
                   lambda x: pv(pWhite, x), # white label
@@ -549,7 +549,7 @@ class MainWin(QtGui.QMainWindow):
             self.settings['sGPIB'] = 'Fake'
             self.Agil = Agilent6000(self.settings['aGPIB'])
             
-        self.Agil.setTrigger()
+        # self.Agil.setTrigger()
         self.settings['collectingScope'] = True
 
         # Without these settings, the oscilloscope will only transfer
@@ -655,6 +655,13 @@ class MainWin(QtGui.QMainWindow):
                 self.updateDataSig.connect(self.waitingForDataLoop.exit)
                 self.waitingForDataLoop.exec_()
                 refFP, refCD, sig = self.integrateData()
+
+                if self.settings['pm_hv'] == 700:
+                    mult = 10
+                    print "700 V setting, mult = {}".format(mult)
+                else:
+                    mult = 1
+                    print "Not 700 V setting, {}, mult = {}".format(self.settings['pm_hv'], mult)
 
                 mult = 10 if self.settings['pm_hv']==700 else 1
                 sig *= mult # to account for the difference between 700 V and 1kV
@@ -952,7 +959,7 @@ class QuickSettingsDialog(QtGui.QDialog):
         bound = self.ui.tGotoBound.value()
 
         self.ui.tStartWN.setText(str(int(sbWN + bound)))
-        self.ui.tStepWN.setText("-1")
+        # self.ui.tStepWN.setText("-1")
         self.ui.tEndWN.setText(str(int(sbWN - bound)))
 
 
@@ -1056,7 +1063,7 @@ class SettingsDialog(QtGui.QDialog):
         bound = self.ui.tGotoBound.value()
 
         self.ui.tStartWN.setText(str(int(sbWN + bound)))
-        self.ui.tStepWN.setText("-1")
+        # self.ui.tStepWN.setText("-1")
         self.ui.tEndWN.setText(str(int(sbWN - bound)))
 
 
