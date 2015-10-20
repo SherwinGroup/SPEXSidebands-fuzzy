@@ -53,84 +53,28 @@ log.addHandler(handler1)
 """
 Calibrating the NE20A filters:
 
-15-08-26 The two filters were calibrated, data can
-be found in
-Z:\Darren\Data\2015\08-26 Recalibrating NE20A\Spectra
-and analysis of the data at
-Z:\Darren\Analysis\2015\08-26 Calibrating NE20As take 2
-
-
-The data for each filterwas plotted as a function of
-Transmission vs. wavenumber and fit to a cubic polynomial.
-The functions are given in the below so that transmission
-can easily be calculated, as a function of frequency,
-at run time. Indices correspond to the indices in the UI.
-If the UI changes, they'll need to change here, too
+15-10-20 Filters were calibrated over a very wide range
+using the blue (halogen?) lamps. The transmission was saved
+in the file NDfilter_stats.
 """
 # Text file with the three filters [Wavelength (nm), Mr. Blue, Mr. White, Three sisters] raw transmission values
 ndFilters_trans = np.loadtxt('NDfilter_stats.txt', comments='#', delimiter=',')
 # The linear interpolation function of the three ND filters we use
 mrBlue = interp1d(ndFilters_trans[:, 0], ndFilters_trans[:, 1]) # NE20A filter with blue 'A'
 mrWhite = interp1d(ndFilters_trans[:, 0], ndFilters_trans[:, 2]) # NE20A filter with no coloring
-threeSisters = interp1d(ndFilters_trans[:, 0], ndFilters_trans[:, 3]) # Combination of three ND filters
-'''
-pWhite = [-8.34934154867e-13, 2.81035287487e-08, -0.000309307365003, 1.14]
-pBlue = [-9.84381907301e-13, 3.43549128432e-08, -0.00039602971404, 1.54]
-from scipy import polyval as pv
-filterFits = list([lambda x: 1,             # No filter
-                  lambda x: pv(pWhite, x), # white label
-                  lambda x: pv(pBlue, x)])  # Blue label
-filterFits.append(lambda x:
-                  filterFits[1](x) * filterFits[2](x)) #Both labels
+mrTriplet = interp1d(ndFilters_trans[:, 0], ndFilters_trans[:, 3]) # Combination of three ND filters
+filterBFWhite    = 0b001
+filterBFBlue     = 0b010
+filterBFTriplet  = 0b100
 
-filterNames = [
-    "None",
-    "White Filter",
-    "Blue Filter",
-    "Both Filters"
-]
-'''
-# Want to be able to print a message or warning if using the filters outside
-# of a calibrated range. Might not ever be necessary, but still comforting
-# to implement
-
-class TestRegion(object):
-    """
-    Convenience class to test whether a number falls within
-    a range. I don't feel like constantly writing
-    if a<x<b, maybe it'll look prettier to call a descriptive
-    method?>
-    """
-    def __init__(self, lb, ub):
-        self.lb = float(lb)
-        self.ub = float(ub)
-    def contains(self, x):
-        if isinstance(x, (int, float)):
-            return self.lb <= x <= self.ub
-        elif isinstance(x, np.ndarray):
-            return np.logical_and(self.lb<x, x<self.ub).all()
-        elif hasattr(x, '__iter__'):
-            for ii in x:
-                if not self.lb<=ii<=self.ub:
-                    return False
-            return True
-        else:
-            log.warning("Unknown value passed to comparator\n\t{}".format(x))
-            return False
-
-
-    def __call__(self, *args, **kwargs):
-        # in case you just want ot call it directly?
-        return self.contains(args[0])
-
-whiteGoodRegion = TestRegion(12000, 14100)
-blueGoodRegion = TestRegion(12375, 14100)
 
 # Need a global reference for keeping the
 # dialog popups, to prevent garbage collection
 # Less stressful than having to manage class
 # references
 dialogList = []
+
+
 
 
 class MainWin(QtGui.QMainWindow):
@@ -274,7 +218,7 @@ class MainWin(QtGui.QMainWindow):
         
         #scan settings
         s['startWN'] = 0 #Starting wavenumber
-        s['stepWN'] = 0 #how many wavenumbers to steop by
+        s['stepWN'] = -0.5 #how many wavenumbers to steop by
         s['endWN'] = 0 #Ending wavenumber
         s['ave'] = 10 #How many values to take an average of
         
@@ -486,12 +430,25 @@ class MainWin(QtGui.QMainWindow):
         s['fel_lambda'] = self.settings['fel_lambda']
         s['fel_reprate'] = self.settings['fel_reprate']
         s['temperature'] = self.settings['temperature']
-        s["filter"] = filterNames[self.settings["filter"]]
+        s["filter"] = ''
+        s["filter"] = s["filter"] + 'White ' if self.settings["filter"] & filterBFWhite else s["filter"]
+        s["filter"] = s["filter"] + 'Blue ' if self.settings["filter"] & filterBFBlue else s["filter"]
+        s["filter"] = s["filter"] + 'Triplet ' if self.settings["filter"] & filterBFTriplet else s["filter"]
+
         aveWN = np.mean(self.settings["allData"][:,0])
         # add the actual transmission used, useful if you want
         # to get the actual scope voltage by multiplying by
         # this transmission
-        s["filterTrans"] = filterFits[self.settings["filter"]](aveWN)
+        T = 1
+        T = T * mrWhite(1e7/aveWN) if self.settings["filter"] & filterBFWhite else T
+        T = T * mrBlue(1e7/aveWN) if self.settings["filter"] & filterBFBlue else T
+        T = T * mrTriplet(1e7/aveWN) if self.settings["filter"] & filterBFTriplet else T
+        s["filterTrans"] = T
+        s["boxcar_pyroBackground"] = self.boxcarRegions[0].getRegion()
+        s["boxcar_pyroFP"] = self.boxcarRegions[1].getRegion()
+        s["boxcar_pyroSignal"] = self.boxcarRegions[2].getRegion()
+        s["boxcar_PMTBackground"] = self.boxcarRegions[3].getRegion()
+        s["boxcar_PMTSignal"] = self.boxcarRegions[4].getRegion()
 
         self.settings['saveComments']
         st = str(self.ui.tSidebandNumber.text()) + "\n"
@@ -584,17 +541,6 @@ class MainWin(QtGui.QMainWindow):
             MessageDialog(self, "Please initialize scan settings.", 3000)
             return
 
-        if self.settings["filter"] & filterNames.index("White Filter") and \
-            not whiteGoodRegion.contains([self.settings["startWN"], self.settings["endWN"]]):
-            print "made white box"
-            MessageDialog("Caution: Outside calibration region\nfor white filter")
-
-        if self.settings["filter"] & filterNames.index("Blue Filter") and \
-            not blueGoodRegion.contains([self.settings["startWN"], self.settings["endWN"]]):
-            print "made blue box"
-            MessageDialog("Caution: Outside calibration region\nfor blue filter")
-
-
         
         #wavenumber, ref FP, ref CD, signal
         self.settings['allData'] = np.empty((0,4))
@@ -675,7 +621,10 @@ class MainWin(QtGui.QMainWindow):
                 sig *= mult # to account for the difference between 700 V and 1kV
 
                 # also account for the attenuation due to the filters
-                T = filterFits[self.settings["filter"]](wavenumber)
+                T = 1
+                T = T * mrWhite(1e7/wavenumber) if self.settings["filter"] & filterBFWhite else T
+                T = T * mrBlue(1e7/wavenumber) if self.settings["filter"] & filterBFBlue else T
+                T = T * mrTriplet(1e7/wavenumber) if self.settings["filter"] & filterBFTriplet else T
                 sig /= T
 
                 self.boxcarSig.emit(refFP, refCD, sig)
@@ -928,8 +877,15 @@ class QuickSettingsDialog(QtGui.QDialog):
         self.ui.cbPMHV.setCurrentIndex(
             self.ui.cbPMHV.findText(str(settings["pm_hv"]))
         )
-        self.ui.cbNDFilters.setCurrentIndex(
-            settings["filter"]
+
+        self.ui.cbFilterWhite.setChecked(
+            settings["filter"] & filterBFWhite
+        )
+        self.ui.cbFilterBlue.setChecked(
+            settings["filter"] & filterBFBlue
+        )
+        self.ui.cbFilterTriplet.setChecked(
+            settings["filter"] & filterBFTriplet
         )
 
         if settings['runningScan']:
@@ -950,7 +906,9 @@ class QuickSettingsDialog(QtGui.QDialog):
         s['ave'] = dialog.ui.tAverages.value()
 
         s['pm_hv'] = int(dialog.ui.cbPMHV.currentText())
-        s["filter"] = dialog.ui.cbNDFilters.currentIndex()
+        s["filter"] = filterBFWhite * int(dialog.ui.cbFilterWhite.isChecked()) | \
+            filterBFBlue * int(dialog.ui.cbFilterBlue.isChecked()) | \
+            filterBFTriplet * int(dialog.ui.cbFilterTriplet.isChecked())
 
         s["autoSBN"] = int(dialog.ui.tGotoSB.value())
         s["autoSBW"] = int(dialog.ui.tGotoBound.value())
@@ -958,8 +916,8 @@ class QuickSettingsDialog(QtGui.QDialog):
         return (s, result==QtGui.QDialog.Accepted)
 
     def calcAutoSB(self):
-        if 0 in [int(i.value()) for i in self.calcSBBoxes]:
-            return
+        # if 0 in [int(i.value()) for i in self.calcSBBoxes]:
+        #     return
 
 
         sbWN = self.NIRLam + \
@@ -986,6 +944,7 @@ class SettingsDialog(QtGui.QDialog):
             self.ui.tGotoSB
         ]
         [i.textAccepted.connect(self.calcAutoSB) for i in self.calcSBBoxes]
+        self.calcSBBoxes.pop(self.calcSBBoxes.index(self.ui.tGotoSB))
         # Want this to be connected to something else so
         # you can parse a nm input
         self.ui.tNIRLam.textAccepted.connect(self.calcNIRLam)
@@ -1022,8 +981,15 @@ class SettingsDialog(QtGui.QDialog):
         self.ui.cbPMHV.setCurrentIndex(
             self.ui.cbPMHV.findText(str(settings["pm_hv"]))
         )
-        self.ui.cbNDFilters.setCurrentIndex(
-            settings["filter"]
+
+        self.ui.cbFilterWhite.setChecked(
+            settings["filter"] & filterBFWhite
+        )
+        self.ui.cbFilterBlue.setChecked(
+            settings["filter"] & filterBFBlue
+        )
+        self.ui.cbFilterTriplet.setChecked(
+            settings["filter"] & filterBFTriplet
         )
 
         self.ui.tFELP.setText(str(settings['fel_power']))
@@ -1053,7 +1019,12 @@ class SettingsDialog(QtGui.QDialog):
         settings['nir_power'] = dialog.ui.tNIRP.value()
         settings['nir_lambda'] = dialog.ui.tNIRLam.value()
         settings['pm_hv'] = int(dialog.ui.cbPMHV.currentText())
-        settings["filter"] = dialog.ui.cbNDFilters.currentIndex()
+
+        settings["filter"] = filterBFWhite * int(dialog.ui.cbFilterWhite.isChecked()) | \
+            filterBFBlue * int(dialog.ui.cbFilterBlue.isChecked()) | \
+            filterBFTriplet * int(dialog.ui.cbFilterTriplet.isChecked())
+
+
         settings["autoSBN"] = int(dialog.ui.tGotoSB.value())
         settings["autoSBW"] = int(dialog.ui.tGotoBound.value())
         settings['fel_power'] = dialog.ui.tFELP.value()

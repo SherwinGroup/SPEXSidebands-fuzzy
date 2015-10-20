@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'Settings.ui'
+# Form implementation generated from reading ui file 'C:\Users\dvalovcin\Documents\GitHub\SPEXSidebands-fuzzy\Settings.ui'
 #
-# Created: Fri Aug 28 14:02:02 2015
-#      by: PyQt4 UI code generator 4.11.3
+# Created: Tue Oct 20 13:58:25 2015
+#      by: PyQt4 UI code generator 4.10.4
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -141,16 +141,15 @@ class Ui_Settings(object):
         self.horizontalLayout_7.addWidget(self.cbPMHV)
         spacerItem1 = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
         self.horizontalLayout_7.addItem(spacerItem1)
-        self.label_17 = QtGui.QLabel(Settings)
-        self.label_17.setObjectName(_fromUtf8("label_17"))
-        self.horizontalLayout_7.addWidget(self.label_17)
-        self.cbNDFilters = QtGui.QComboBox(Settings)
-        self.cbNDFilters.setObjectName(_fromUtf8("cbNDFilters"))
-        self.cbNDFilters.addItem(_fromUtf8(""))
-        self.cbNDFilters.addItem(_fromUtf8(""))
-        self.cbNDFilters.addItem(_fromUtf8(""))
-        self.cbNDFilters.addItem(_fromUtf8(""))
-        self.horizontalLayout_7.addWidget(self.cbNDFilters)
+        self.cbFilterWhite = QtGui.QCheckBox(Settings)
+        self.cbFilterWhite.setObjectName(_fromUtf8("cbFilterWhite"))
+        self.horizontalLayout_7.addWidget(self.cbFilterWhite)
+        self.cbFilterBlue = QtGui.QCheckBox(Settings)
+        self.cbFilterBlue.setObjectName(_fromUtf8("cbFilterBlue"))
+        self.horizontalLayout_7.addWidget(self.cbFilterBlue)
+        self.cbFilterTriplet = QtGui.QCheckBox(Settings)
+        self.cbFilterTriplet.setObjectName(_fromUtf8("cbFilterTriplet"))
+        self.horizontalLayout_7.addWidget(self.cbFilterTriplet)
         self.verticalLayout_2.addLayout(self.horizontalLayout_7)
         self.horizontalLayout_6 = QtGui.QHBoxLayout()
         self.horizontalLayout_6.setObjectName(_fromUtf8("horizontalLayout_6"))
@@ -230,11 +229,9 @@ class Ui_Settings(object):
         self.label_13.setText(_translate("Settings", "PM HV", None))
         self.cbPMHV.setItemText(0, _translate("Settings", "700", None))
         self.cbPMHV.setItemText(1, _translate("Settings", "1000", None))
-        self.label_17.setText(_translate("Settings", "ND Filters", None))
-        self.cbNDFilters.setItemText(0, _translate("Settings", "None", None))
-        self.cbNDFilters.setItemText(1, _translate("Settings", "White Label", None))
-        self.cbNDFilters.setItemText(2, _translate("Settings", "Blue Label", None))
-        self.cbNDFilters.setItemText(3, _translate("Settings", "Both", None))
+        self.cbFilterWhite.setText(_translate("Settings", "White", None))
+        self.cbFilterBlue.setText(_translate("Settings", "Blue", None))
+        self.cbFilterTriplet.setText(_translate("Settings", "Triplet", None))
         self.label_9.setText(_translate("Settings", "FEL Power (W)", None))
         self.tFELP.setText(_translate("Settings", "0", None))
         self.label_15.setText(_translate("Settings", "FEL  (cm-1)", None))

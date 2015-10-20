@@ -6,14 +6,14 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>464</width>
-    <height>156</height>
+    <width>451</width>
+    <height>125</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Scan Settings</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout_2">
+  <layout class="QVBoxLayout" name="verticalLayout">
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout_3">
      <item>
@@ -132,34 +132,24 @@
       </spacer>
      </item>
      <item>
-      <widget class="QLabel" name="label_17">
+      <widget class="QCheckBox" name="cbFilterWhite">
        <property name="text">
-        <string>ND Filters</string>
+        <string>White</string>
        </property>
       </widget>
      </item>
      <item>
-      <widget class="QComboBox" name="cbNDFilters">
-       <item>
-        <property name="text">
-         <string>None</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>White Label</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>Blue Label</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>Both</string>
-        </property>
-       </item>
+      <widget class="QCheckBox" name="cbFilterBlue">
+       <property name="text">
+        <string>Blue</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="cbFilterTriplet">
+       <property name="text">
+        <string>Triplet</string>
+       </property>
       </widget>
      </item>
     </layout>
@@ -196,7 +186,6 @@
   <tabstop>tGotoSB</tabstop>
   <tabstop>tGotoBound</tabstop>
   <tabstop>cbPMHV</tabstop>
-  <tabstop>cbNDFilters</tabstop>
   <tabstop>buttonBox</tabstop>
  </tabstops>
  <resources/>

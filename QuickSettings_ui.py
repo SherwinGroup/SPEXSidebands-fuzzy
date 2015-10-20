@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'QuickSettings.ui'
+# Form implementation generated from reading ui file 'C:\Users\dvalovcin\Documents\GitHub\SPEXSidebands-fuzzy\QuickSettings.ui'
 #
-# Created: Fri Aug 28 14:01:38 2015
-#      by: PyQt4 UI code generator 4.11.3
+# Created: Tue Oct 20 14:12:59 2015
+#      by: PyQt4 UI code generator 4.10.4
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -26,9 +26,9 @@ except AttributeError:
 class Ui_QuickSettings(object):
     def setupUi(self, QuickSettings):
         QuickSettings.setObjectName(_fromUtf8("QuickSettings"))
-        QuickSettings.resize(464, 156)
-        self.verticalLayout_2 = QtGui.QVBoxLayout(QuickSettings)
-        self.verticalLayout_2.setObjectName(_fromUtf8("verticalLayout_2"))
+        QuickSettings.resize(451, 125)
+        self.verticalLayout = QtGui.QVBoxLayout(QuickSettings)
+        self.verticalLayout.setObjectName(_fromUtf8("verticalLayout"))
         self.horizontalLayout_3 = QtGui.QHBoxLayout()
         self.horizontalLayout_3.setObjectName(_fromUtf8("horizontalLayout_3"))
         self.label_3 = QtGui.QLabel(QuickSettings)
@@ -55,7 +55,7 @@ class Ui_QuickSettings(object):
         self.tAverages = QINumberEdit(QuickSettings)
         self.tAverages.setObjectName(_fromUtf8("tAverages"))
         self.horizontalLayout_3.addWidget(self.tAverages)
-        self.verticalLayout_2.addLayout(self.horizontalLayout_3)
+        self.verticalLayout.addLayout(self.horizontalLayout_3)
         self.horizontalLayout_11 = QtGui.QHBoxLayout()
         self.horizontalLayout_11.setObjectName(_fromUtf8("horizontalLayout_11"))
         self.label_18 = QtGui.QLabel(QuickSettings)
@@ -72,7 +72,7 @@ class Ui_QuickSettings(object):
         self.horizontalLayout_11.addWidget(self.tGotoBound)
         spacerItem = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
         self.horizontalLayout_11.addItem(spacerItem)
-        self.verticalLayout_2.addLayout(self.horizontalLayout_11)
+        self.verticalLayout.addLayout(self.horizontalLayout_11)
         self.horizontalLayout_7 = QtGui.QHBoxLayout()
         self.horizontalLayout_7.setObjectName(_fromUtf8("horizontalLayout_7"))
         self.label_13 = QtGui.QLabel(QuickSettings)
@@ -85,22 +85,21 @@ class Ui_QuickSettings(object):
         self.horizontalLayout_7.addWidget(self.cbPMHV)
         spacerItem1 = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
         self.horizontalLayout_7.addItem(spacerItem1)
-        self.label_17 = QtGui.QLabel(QuickSettings)
-        self.label_17.setObjectName(_fromUtf8("label_17"))
-        self.horizontalLayout_7.addWidget(self.label_17)
-        self.cbNDFilters = QtGui.QComboBox(QuickSettings)
-        self.cbNDFilters.setObjectName(_fromUtf8("cbNDFilters"))
-        self.cbNDFilters.addItem(_fromUtf8(""))
-        self.cbNDFilters.addItem(_fromUtf8(""))
-        self.cbNDFilters.addItem(_fromUtf8(""))
-        self.cbNDFilters.addItem(_fromUtf8(""))
-        self.horizontalLayout_7.addWidget(self.cbNDFilters)
-        self.verticalLayout_2.addLayout(self.horizontalLayout_7)
+        self.cbFilterWhite = QtGui.QCheckBox(QuickSettings)
+        self.cbFilterWhite.setObjectName(_fromUtf8("cbFilterWhite"))
+        self.horizontalLayout_7.addWidget(self.cbFilterWhite)
+        self.cbFilterBlue = QtGui.QCheckBox(QuickSettings)
+        self.cbFilterBlue.setObjectName(_fromUtf8("cbFilterBlue"))
+        self.horizontalLayout_7.addWidget(self.cbFilterBlue)
+        self.cbFilterTriplet = QtGui.QCheckBox(QuickSettings)
+        self.cbFilterTriplet.setObjectName(_fromUtf8("cbFilterTriplet"))
+        self.horizontalLayout_7.addWidget(self.cbFilterTriplet)
+        self.verticalLayout.addLayout(self.horizontalLayout_7)
         self.buttonBox = QtGui.QDialogButtonBox(QuickSettings)
         self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
         self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Cancel|QtGui.QDialogButtonBox.Ok)
         self.buttonBox.setObjectName(_fromUtf8("buttonBox"))
-        self.verticalLayout_2.addWidget(self.buttonBox)
+        self.verticalLayout.addWidget(self.buttonBox)
 
         self.retranslateUi(QuickSettings)
         QtCore.QObject.connect(self.buttonBox, QtCore.SIGNAL(_fromUtf8("accepted()")), QuickSettings.accept)
@@ -112,8 +111,7 @@ class Ui_QuickSettings(object):
         QuickSettings.setTabOrder(self.tAverages, self.tGotoSB)
         QuickSettings.setTabOrder(self.tGotoSB, self.tGotoBound)
         QuickSettings.setTabOrder(self.tGotoBound, self.cbPMHV)
-        QuickSettings.setTabOrder(self.cbPMHV, self.cbNDFilters)
-        QuickSettings.setTabOrder(self.cbNDFilters, self.buttonBox)
+        QuickSettings.setTabOrder(self.cbPMHV, self.buttonBox)
 
     def retranslateUi(self, QuickSettings):
         QuickSettings.setWindowTitle(_translate("QuickSettings", "Scan Settings", None))
@@ -126,10 +124,8 @@ class Ui_QuickSettings(object):
         self.label_13.setText(_translate("QuickSettings", "PM HV", None))
         self.cbPMHV.setItemText(0, _translate("QuickSettings", "700", None))
         self.cbPMHV.setItemText(1, _translate("QuickSettings", "1000", None))
-        self.label_17.setText(_translate("QuickSettings", "ND Filters", None))
-        self.cbNDFilters.setItemText(0, _translate("QuickSettings", "None", None))
-        self.cbNDFilters.setItemText(1, _translate("QuickSettings", "White Label", None))
-        self.cbNDFilters.setItemText(2, _translate("QuickSettings", "Blue Label", None))
-        self.cbNDFilters.setItemText(3, _translate("QuickSettings", "Both", None))
+        self.cbFilterWhite.setText(_translate("QuickSettings", "White", None))
+        self.cbFilterBlue.setText(_translate("QuickSettings", "Blue", None))
+        self.cbFilterTriplet.setText(_translate("QuickSettings", "Triplet", None))
 
 from InstsAndQt.customQt import QINumberEdit, QFNumberEdit
