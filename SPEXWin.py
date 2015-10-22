@@ -45,7 +45,12 @@ class SPEXWin(QtGui.QMainWindow):
             self.settings['sGPIB'] = SPEXInfo
             self.openSPEX()
         # figure out where the spex is
-        pos = self.SPEX.stepsToWN(self.SPEX.curStep())
+        try:
+            pos = self.SPEX.stepsToWN(self.SPEX.curStep())
+        except TypeError:
+            print "Error, spex not initialized!"
+            QtGui.QMessageBox.critical(self, "Error", "Error! SPEX not initalized!")
+            pos = 0
         self.ui.sbGoto.setValue(pos)
             
             

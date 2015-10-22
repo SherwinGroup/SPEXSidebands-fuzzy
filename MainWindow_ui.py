@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:\Users\dvalovcin\Documents\GitHub\SPEXSidebands-fuzzy\MainWindow.ui'
+# Form implementation generated from reading ui file 'MainWindow.ui'
 #
-# Created: Mon May 04 15:58:32 2015
-#      by: PyQt4 UI code generator 4.10.4
+# Created: Fri Aug 28 13:58:22 2015
+#      by: PyQt4 UI code generator 4.11.3
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -26,7 +26,7 @@ except AttributeError:
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName(_fromUtf8("MainWindow"))
-        MainWindow.resize(776, 503)
+        MainWindow.resize(823, 503)
         self.centralwidget = QtGui.QWidget(MainWindow)
         self.centralwidget.setObjectName(_fromUtf8("centralwidget"))
         self.verticalLayout = QtGui.QVBoxLayout(self.centralwidget)
@@ -143,19 +143,22 @@ class Ui_MainWindow(object):
         self.horizontalLayout_3.addItem(spacerItem)
         self.gridLayout = QtGui.QGridLayout()
         self.gridLayout.setObjectName(_fromUtf8("gridLayout"))
-        self.bStart = QtGui.QPushButton(self.tab)
-        self.bStart.setObjectName(_fromUtf8("bStart"))
-        self.gridLayout.addWidget(self.bStart, 0, 1, 1, 1)
         self.bAbort = QtGui.QPushButton(self.tab)
         self.bAbort.setObjectName(_fromUtf8("bAbort"))
-        self.gridLayout.addWidget(self.bAbort, 1, 1, 1, 1)
+        self.gridLayout.addWidget(self.bAbort, 1, 2, 1, 1)
+        self.bQuickStart = QtGui.QPushButton(self.tab)
+        self.bQuickStart.setObjectName(_fromUtf8("bQuickStart"))
+        self.gridLayout.addWidget(self.bQuickStart, 0, 2, 1, 1)
+        self.bSaveWaveforms = QtGui.QPushButton(self.tab)
+        self.bSaveWaveforms.setObjectName(_fromUtf8("bSaveWaveforms"))
+        self.gridLayout.addWidget(self.bSaveWaveforms, 1, 0, 1, 1)
         self.bPause = QtGui.QPushButton(self.tab)
         self.bPause.setCheckable(True)
         self.bPause.setObjectName(_fromUtf8("bPause"))
         self.gridLayout.addWidget(self.bPause, 0, 0, 1, 1)
-        self.bSaveWaveforms = QtGui.QPushButton(self.tab)
-        self.bSaveWaveforms.setObjectName(_fromUtf8("bSaveWaveforms"))
-        self.gridLayout.addWidget(self.bSaveWaveforms, 1, 0, 1, 1)
+        self.bStart = QtGui.QPushButton(self.tab)
+        self.bStart.setObjectName(_fromUtf8("bStart"))
+        self.gridLayout.addWidget(self.bStart, 0, 1, 1, 1)
         self.horizontalLayout_3.addLayout(self.gridLayout)
         self.verticalLayout_2.addLayout(self.horizontalLayout_3)
         self.tabWidget.addTab(self.tab, _fromUtf8(""))
@@ -170,7 +173,7 @@ class Ui_MainWindow(object):
         self.verticalLayout.addWidget(self.tabWidget)
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtGui.QMenuBar(MainWindow)
-        self.menubar.setGeometry(QtCore.QRect(0, 0, 776, 21))
+        self.menubar.setGeometry(QtCore.QRect(0, 0, 823, 22))
         self.menubar.setObjectName(_fromUtf8("menubar"))
         self.menuFile = QtGui.QMenu(self.menubar)
         self.menuFile.setObjectName(_fromUtf8("menuFile"))
@@ -211,8 +214,8 @@ class Ui_MainWindow(object):
         MainWindow.setTabOrder(self.tPmSgEn, self.tSaveName)
         MainWindow.setTabOrder(self.tSaveName, self.bChooseDirectory)
         MainWindow.setTabOrder(self.bChooseDirectory, self.bPause)
-        MainWindow.setTabOrder(self.bPause, self.bStart)
-        MainWindow.setTabOrder(self.bStart, self.bSaveWaveforms)
+        MainWindow.setTabOrder(self.bPause, self.bQuickStart)
+        MainWindow.setTabOrder(self.bQuickStart, self.bSaveWaveforms)
         MainWindow.setTabOrder(self.bSaveWaveforms, self.bAbort)
         MainWindow.setTabOrder(self.bAbort, self.gPyro)
         MainWindow.setTabOrder(self.gPyro, self.gSignal)
@@ -244,10 +247,11 @@ class Ui_MainWindow(object):
         self.label.setText(_translate("MainWindow", "Save File Name", None))
         self.bChooseDirectory.setText(_translate("MainWindow", "Choose Directory", None))
         self.groupBox.setTitle(_translate("MainWindow", "Sideband Number", None))
-        self.bStart.setText(_translate("MainWindow", "Start", None))
         self.bAbort.setText(_translate("MainWindow", "Abort", None))
-        self.bPause.setText(_translate("MainWindow", "Pause", None))
+        self.bQuickStart.setText(_translate("MainWindow", "Quick Start", None))
         self.bSaveWaveforms.setText(_translate("MainWindow", "Save Waveforms", None))
+        self.bPause.setText(_translate("MainWindow", "Pause", None))
+        self.bStart.setText(_translate("MainWindow", "Start", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab), _translate("MainWindow", "Experimental Settings", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_2), _translate("MainWindow", "Scan", None))
         self.menuFile.setTitle(_translate("MainWindow", "File", None))

@@ -6,6 +6,7 @@ Created on Tue Feb 03 12:53:22 2015
 
 import numpy as np
 import scipy.integrate as spi
+from scipy.interpolate import interp1d
 from PyQt4 import QtGui, QtCore
 import threading
 import json
@@ -14,11 +15,14 @@ import time
 import copy
 try:
     from InstsAndQt.Instruments import SPEX, Agilent6000
+    import InstsAndQt.Instruments
+    InstsAndQt.Instruments.PRINT_OUTPUT = False
 except Exception as e:
     raise IOError('Instrument library not found. Often placed in another directory')
 from SPEXWin import SPEXWin
 from MainWindow_ui import Ui_MainWindow
-from Settings_ui import Ui_Dialog
+from Settings_ui import Ui_Settings
+from QuickSettings_ui import Ui_QuickSettings
 import pyqtgraph as pg
 pg.setConfigOption('background', 'w')
 pg.setConfigOption('foreground', 'k')
@@ -49,32 +53,29 @@ log.addHandler(handler1)
 """
 Calibrating the NE20A filters:
 
-15-06-15 The two filters were calibrated, data can
-be found in
-Z:\Darren\Data\2015\06-15 NE20A Abs\Spectra\[Near|Mid|Far]
-
-The data for each filterwas plotted as a function of
-Transmission vs. wavenumber and fit to a 5th degree polynomial.
-The functions are given in the below so that transmission
-can easily be calculated, as a function of frequency,
-at run time. Indices correspond to the indices in the UI.
-If the UI changes, they'll need to change here, too
+15-10-20 Filters were calibrated over a very wide range
+using the blue (halogen?) lamps. The transmission was saved
+in the file NDfilter_stats.
 """
-pWhite = [-2.97045540918e-17, 2.00599886468e-12, -5.41806328661e-08, 0.000731592080792, -4.93857760694, 13333.1270622]
-pBlue = [-2.16704620823e-17, 1.46608380885e-12, -3.96693766801e-08, 0.000536611905244, -3.62883313875, 9814.37461508]
-from scipy import polyval as pv
-filterFits = list([lambda x: 1,             # No filter
-                  lambda x: pv(pWhite, x), # white label
-                  lambda x: pv(pBlue, x)])  # Blue label
-filterFits.append(lambda x:
-                  filterFits[1](x) * filterFits[2](x)) #Both labels
+# Text file with the three filters [Wavelength (nm), Mr. Blue, Mr. White, Three sisters] raw transmission values
+ndFilters_trans = np.loadtxt('NDfilter_stats.txt', comments='#', delimiter=',')
+# The linear interpolation function of the three ND filters we use
+mrBlue = interp1d(ndFilters_trans[:, 0], ndFilters_trans[:, 1]) # NE20A filter with blue 'A'
+mrWhite = interp1d(ndFilters_trans[:, 0], ndFilters_trans[:, 2]) # NE20A filter with no coloring
+mrTriplet = interp1d(ndFilters_trans[:, 0], ndFilters_trans[:, 3]) # Combination of three ND filters
+filterBFWhite    = 0b001
+filterBFBlue     = 0b010
+filterBFTriplet  = 0b100
 
-filterNames = [
-    "None",
-    "White Filter",
-    "Blue Filter",
-    "Both Filters"
-]
+
+# Need a global reference for keeping the
+# dialog popups, to prevent garbage collection
+# Less stressful than having to manage class
+# references
+dialogList = []
+
+
+
 
 class MainWin(QtGui.QMainWindow):
     #emits when oscilloscope is done taking data so that
@@ -84,7 +85,7 @@ class MainWin(QtGui.QMainWindow):
     #Either a string or array of [str, int]
     #where str is message and int is time (ms) to display
     statusSig = QtCore.pyqtSignal(object)
-    #Emits data from the oscilloscope. Updates graphs
+    #Emits data from the oscillscope. Updates graphs
     pyDataSig = QtCore.pyqtSignal(object)
     pmDataSig = QtCore.pyqtSignal(object)
     #emits the wavenumber changes so a child'ed SPEXWin can update.
@@ -156,6 +157,7 @@ class MainWin(QtGui.QMainWindow):
         
         
         self.ui.bChooseDirectory.clicked.connect(self.updateSaveLoc)
+        self.ui.bQuickStart.clicked.connect(self.quickStartScan)
         self.ui.bStart.clicked.connect(self.startScan)
         self.ui.bPause.clicked[bool].connect(self.togglePause)
         self.ui.bPause.setChecked(True)
@@ -211,12 +213,12 @@ class MainWin(QtGui.QMainWindow):
         s["filter"] = 0 # Which filter is in place?
         s['fel_reprate'] = 0.75
 
-        s["autoSBN"] = -2 # automatic sideband, desired sb
+        s["autoSBN"] = 2 # automatic sideband, desired sb
         s["autoSBW"] = 4  # automatic SB, desired width
         
         #scan settings
         s['startWN'] = 0 #Starting wavenumber
-        s['stepWN'] = 0 #how many wavenumbers to steop by
+        s['stepWN'] = -0.5 #how many wavenumbers to steop by
         s['endWN'] = 0 #Ending wavenumber
         s['ave'] = 10 #How many values to take an average of
         
@@ -301,8 +303,14 @@ class MainWin(QtGui.QMainWindow):
         #thus changing the values and we're unable to see whether things have changed.
         newSettings, ok = SettingsDialog.getSettings(self, copy.copy(self.settings))
         if not ok:
-            print 'canceled'
             return
+
+        # Update the sideband textbox if you used the
+        # autocalculator to move to a new one.
+        if not self.settings["autoSBN"] == newSettings["autoSBN"]:
+            self.ui.tSidebandNumber.setText(str(newSettings["autoSBN"]))
+
+
         
         #Need to check to see if the GPIB values changed so we can update them.
         #The opening procedure opens a fake isntrument if things go wrong, which 
@@ -354,6 +362,13 @@ class MainWin(QtGui.QMainWindow):
             return
         self.linearRegionTextBoxes[i][0].setText('{:.9g}'.format(sender.getRegion()[0]))
         self.linearRegionTextBoxes[i][1].setText('{:.9g}'.format(sender.getRegion()[1]))
+
+        # Restrict it so the sideband signal is always 40ns
+        # (width of the cavity dump)
+        if sendidx == 4:
+            a = list(sender.getRegion())
+            a[1] = a[0]+40e-9
+            sender.setRegion(a)
             
     def updateLinearRegionsFromText(self):
         sender = self.sender()
@@ -367,20 +382,24 @@ class MainWin(QtGui.QMainWindow):
         
         i = sendi
         j = sendj
+        if i==4 and j==1:
+            sender.setText(str(
+                float(self.linearRegionTextBoxes[-1][0].text())+40e-9
+            ))
         curVals = list(self.boxcarRegions[i].getRegion())
         curVals[j] = float(sender.text())
         self.boxcarRegions[i].setRegion(tuple(curVals))
 
     def initRegions(self):
         sent = self.sender()
-        linearRegions = self.linearRegionTextBoxes[0:3] # the ones for the pyro
+        boxcarRegions = self.boxcarRegions[0:3] # the ones for the pyro
         try:
             length = len(self.settings['pyData'])
             point = self.settings['pyData'][length/2,0]
         except:
             return
         if sent is self.ui.bInitPMT:
-            linearRegions = self.linearRegionTextBoxes[-2:] # the ones for the PMT
+            boxcarRegions = self.boxcarRegions[-2:] # the ones for the PMT
             try:
                 length = len(self.settings['pmData'])
                 point = self.settings['pmData'][length/2,0]
@@ -388,8 +407,9 @@ class MainWin(QtGui.QMainWindow):
                 return
 
         # set all of the linear regions
-        [[i.setText(str(point)) for i in j] for j in zip(*linearRegions)]
-        [[i.setText(str(point)) for i in j] for j in zip(*linearRegions)]
+        # [[i.setText(str(point)) for i in j] for j in zip(*linearRegions)]
+        # [[i.setText(str(point)) for i in j] for j in zip(*linearRegions)]
+        [i.setRegion((point, point)) for i in boxcarRegions]
 
 
         
@@ -410,12 +430,25 @@ class MainWin(QtGui.QMainWindow):
         s['fel_lambda'] = self.settings['fel_lambda']
         s['fel_reprate'] = self.settings['fel_reprate']
         s['temperature'] = self.settings['temperature']
-        s["filter"] = filterNames[self.settings["filter"]]
+        s["filter"] = ''
+        s["filter"] = s["filter"] + 'White ' if self.settings["filter"] & filterBFWhite else s["filter"]
+        s["filter"] = s["filter"] + 'Blue ' if self.settings["filter"] & filterBFBlue else s["filter"]
+        s["filter"] = s["filter"] + 'Triplet ' if self.settings["filter"] & filterBFTriplet else s["filter"]
+
         aveWN = np.mean(self.settings["allData"][:,0])
         # add the actual transmission used, useful if you want
         # to get the actual scope voltage by multiplying by
         # this transmission
-        s["filterTrans"] = filterFits[self.settings["filter"]](aveWN)
+        T = 1
+        T = T * mrWhite(1e7/aveWN) if self.settings["filter"] & filterBFWhite else T
+        T = T * mrBlue(1e7/aveWN) if self.settings["filter"] & filterBFBlue else T
+        T = T * mrTriplet(1e7/aveWN) if self.settings["filter"] & filterBFTriplet else T
+        s["filterTrans"] = T
+        s["boxcar_pyroBackground"] = self.boxcarRegions[0].getRegion()
+        s["boxcar_pyroFP"] = self.boxcarRegions[1].getRegion()
+        s["boxcar_pyroSignal"] = self.boxcarRegions[2].getRegion()
+        s["boxcar_PMTBackground"] = self.boxcarRegions[3].getRegion()
+        s["boxcar_PMTSignal"] = self.boxcarRegions[4].getRegion()
 
         self.settings['saveComments']
         st = str(self.ui.tSidebandNumber.text()) + "\n"
@@ -447,9 +480,9 @@ class MainWin(QtGui.QMainWindow):
 
         num = str(len(files) * num) if len(files)>0 else ''
         np.savetxt(self.settings['saveLocation'] + str(self.ui.tSaveName.text()) + '_signalWaveform' + num + '.txt',
-                   pyro, header = self.genSaveHeader()+'Voltage (V), Time(s)')
-        np.savetxt(self.settings['saveLocation'] + str(self.ui.tSaveName.text()) + '_signalWaveform.txt',
                    sig, header = self.genSaveHeader()+'Voltage (V), Time(s)')
+        # np.savetxt(self.settings['saveLocation'] + str(self.ui.tSaveName.text()) + '_signalWaveform.txt',
+        #            sig, header = self.genSaveHeader()+'Voltage (V), Time(s)')
         
     
     def openSPEX(self):
@@ -481,7 +514,7 @@ class MainWin(QtGui.QMainWindow):
             self.settings['sGPIB'] = 'Fake'
             self.Agil = Agilent6000(self.settings['aGPIB'])
             
-        self.Agil.setTrigger()
+        # self.Agil.setTrigger()
         self.settings['collectingScope'] = True
 
         # Without these settings, the oscilloscope will only transfer
@@ -497,7 +530,7 @@ class MainWin(QtGui.QMainWindow):
         self.scopeCollectionThread = threading.Thread(target = self.collectScopeLoop)
         self.scopeCollectionThread.start()
 
-    def startScan(self):
+    def quickStartScan(self):
         if self.settings['nir_power'] == -1.0:
             self.settings['startWN'] = 13160
             self.settings['stepWN'] = -1
@@ -505,7 +538,9 @@ class MainWin(QtGui.QMainWindow):
             self.settings['ave'] = 3
         elif self.settings['stepWN'] == 0:
             self.statusSig.emit(['Please initialize scan settings', 10000])
+            MessageDialog(self, "Please initialize scan settings.", 3000)
             return
+
         
         #wavenumber, ref FP, ref CD, signal
         self.settings['allData'] = np.empty((0,4))
@@ -513,11 +548,39 @@ class MainWin(QtGui.QMainWindow):
         self.updateScan() # clear the graph
         self.settings['runningScan'] = True
         self.ui.bStart.setEnabled(False)
+        self.ui.bQuickStart.setEnabled(False)
         self.statusSig.emit(['Starting Scan', 3000])
         
         self.scanRunningThread = threading.Thread(target = self.runScanLoop)
         self.scanRunningThread.start()
-        
+
+    def startScan(self):
+        """
+        Called to open up settings to confirm
+        PM HV and filters, which we often fuck up.
+        :return:
+        """
+        sets, ok = QuickSettingsDialog.getSettings(self, self.settings)
+        if not ok:
+            return
+
+        # Update the sideband textbox if you used the
+        # autocalculator to move to a new one.
+
+        print self.settings["autoSBN"], sets["autoSBN"]
+
+        if not self.settings["autoSBN"] == sets["autoSBN"]:
+            self.ui.tSidebandNumber.setText(str(sets["autoSBN"]))
+
+        self.settings.update(sets)
+
+        #enforce the correct sign
+        self.settings['stepWN'] = np.sign(self.settings['endWN']-self.settings['startWN'])*np.abs(
+                    self.settings['stepWN'])
+
+
+        self.quickStartScan()
+
     def runScanLoop(self):
         WNRange = np.arange(self.settings['startWN'],
                                 self.settings['endWN'], self.settings['stepWN'])
@@ -547,11 +610,21 @@ class MainWin(QtGui.QMainWindow):
                 self.waitingForDataLoop.exec_()
                 refFP, refCD, sig = self.integrateData()
 
+                if self.settings['pm_hv'] == 700:
+                    mult = 10
+                    print "700 V setting, mult = {}".format(mult)
+                else:
+                    mult = 1
+                    print "Not 700 V setting, {}, mult = {}".format(self.settings['pm_hv'], mult)
+
                 mult = 10 if self.settings['pm_hv']==700 else 1
                 sig *= mult # to account for the difference between 700 V and 1kV
 
                 # also account for the attenuation due to the filters
-                T = filterFits[self.settings["filter"]](wavenumber)
+                T = 1
+                T = T * mrWhite(1e7/wavenumber) if self.settings["filter"] & filterBFWhite else T
+                T = T * mrBlue(1e7/wavenumber) if self.settings["filter"] & filterBFBlue else T
+                T = T * mrTriplet(1e7/wavenumber) if self.settings["filter"] & filterBFTriplet else T
                 sig /= T
 
                 self.boxcarSig.emit(refFP, refCD, sig)
@@ -565,19 +638,38 @@ class MainWin(QtGui.QMainWindow):
                     self.statusSig.emit(['Wavenumber: {}. No. {}'.format(wavenumber, num), 0])
             
             
-        
+
+        filename = str(self.ui.tSaveName.text())
+
+        # Automatically add the sideband to the filename,
+        # using 'p' or 'm' prefix for positive or negative
+        # (since you can't use '-6' and '+6' in filenames
+        sb = str(self.ui.tSidebandNumber.text())
+        if sb: # string is not empty
+            if int(sb)>=0:
+                filename += '_p{}'.format(abs(int(sb)))
+            else:
+                filename += '_m{}'.format(abs(int(sb)))
+
+        filename += '_scanData'
+
         #save Data. Check if there are any in the folder yet
-        num = 1
-        files = glob.glob(self.settings['saveLocation'] + str(self.ui.tSaveName.text()) + '_scanData*.txt')
-        num = str(len(files) * num) if len(files)>0 else ''
-        np.savetxt(self.settings['saveLocation'] + str(self.ui.tSaveName.text()) + '_scanData' + num + '.txt',
+        files = glob.glob(os.path.join(self.settings['saveLocation'], filename + '*.txt'))
+        num = len(files)
+
+        np.savetxt(self.settings['saveLocation'] + filename + '{}.txt'.format(num),
                    self.settings['allData'],
                    header = self.genSaveHeader() +  'Wavenumber, Integrated front porch, Integrated Cavity dump, integrated signal')
+
+        # np.savetxt(self.settings['saveLocation'] + str(self.ui.tSaveName.text()) + '_scanData' + num + '.txt',
+        #            self.settings['allData'],
+        #            header = self.genSaveHeader() +  'Wavenumber, Integrated front porch, Integrated Cavity dump, integrated signal')
         
         #clean up after done
         self.settings['collectingData'] = False
         self.settings['runningScan'] = False
         self.ui.bStart.setEnabled(True)
+        self.ui.bQuickStart.setEnabled(True)
         self.statusSig.emit(['Done', 3000])
             
     def updateBoxcarTexts(self, v1, v2, v3):
@@ -752,6 +844,96 @@ class MainWin(QtGui.QMainWindow):
         self.close()
 
 
+class QuickSettingsDialog(QtGui.QDialog):
+    def __init__(self, parent = None, settings=None):
+        super(QuickSettingsDialog, self).__init__(parent)
+        self.initUI(settings)
+
+        self.FELLam = settings["fel_lambda"]
+        self.NIRLam = settings["nir_lambda"]
+
+        if self.FELLam * self.NIRLam > 0: # both are non-zero
+            self.calcSBBoxes = [ #Easy iteration list
+                self.ui.tGotoBound,
+                self.ui.tGotoSB
+            ]
+            [i.textAccepted.connect(self.calcAutoSB) for i in self.calcSBBoxes]
+
+
+    def initUI(self, settings):
+        self.ui = Ui_QuickSettings()
+        self.ui.setupUi(self)
+
+        self.ui.tStartWN.setText(str(settings['startWN']))
+        self.ui.tStepWN.setText(str(settings['stepWN']))
+        self.ui.tEndWN.setText(str(settings['endWN']))
+        self.ui.tAverages.setText(str(settings['ave']))
+
+
+
+        self.ui.tGotoBound.setText(str(settings["autoSBW"]))
+        self.ui.tGotoSB.setText(str(settings["autoSBN"]))
+
+        self.ui.cbPMHV.setCurrentIndex(
+            self.ui.cbPMHV.findText(str(settings["pm_hv"]))
+        )
+
+        self.ui.cbFilterWhite.setChecked(
+            settings["filter"] & filterBFWhite
+        )
+        self.ui.cbFilterBlue.setChecked(
+            settings["filter"] & filterBFBlue
+        )
+        self.ui.cbFilterTriplet.setChecked(
+            settings["filter"] & filterBFTriplet
+        )
+
+        if settings['runningScan']:
+            self.ui.tAverages.setEnabled(False)
+            self.ui.tStartWN.setEnabled(False)
+            self.ui.tStepWN.setEnabled(False)
+            self.ui.tEndWN.setEnabled(False)
+
+    @staticmethod
+    def getSettings(parent = None, settings = None):
+        dialog = QuickSettingsDialog(parent, settings)
+        result = dialog.exec_()
+
+        s = dict()
+        s['startWN'] = dialog.ui.tStartWN.value()
+        s['stepWN'] = dialog.ui.tStepWN.value()
+        s['endWN'] = dialog.ui.tEndWN.value()
+        s['ave'] = dialog.ui.tAverages.value()
+
+        s['pm_hv'] = int(dialog.ui.cbPMHV.currentText())
+        s["filter"] = filterBFWhite * int(dialog.ui.cbFilterWhite.isChecked()) | \
+            filterBFBlue * int(dialog.ui.cbFilterBlue.isChecked()) | \
+            filterBFTriplet * int(dialog.ui.cbFilterTriplet.isChecked())
+
+        s["autoSBN"] = int(dialog.ui.tGotoSB.value())
+        s["autoSBW"] = int(dialog.ui.tGotoBound.value())
+
+        return (s, result==QtGui.QDialog.Accepted)
+
+    def calcAutoSB(self):
+        # if 0 in [int(i.value()) for i in self.calcSBBoxes]:
+        #     return
+
+
+        sbWN = self.NIRLam + \
+               self.FELLam * self.ui.tGotoSB.value()
+        bound = self.ui.tGotoBound.value()
+
+        self.ui.tStartWN.setText(str(int(sbWN + bound)))
+        # self.ui.tStepWN.setText("-1")
+        self.ui.tEndWN.setText(str(int(sbWN - bound)))
+
+
+    def calcNIRLam(self, val):
+        if val<10000:
+            self.ui.tNIRLam.setText("{:.1f}".format(10000000./val))
+        self.calcAutoSB()
+
 class SettingsDialog(QtGui.QDialog):
     def __init__(self, parent = None, settings=None):
         super(SettingsDialog, self).__init__(parent)
@@ -762,6 +944,7 @@ class SettingsDialog(QtGui.QDialog):
             self.ui.tGotoSB
         ]
         [i.textAccepted.connect(self.calcAutoSB) for i in self.calcSBBoxes]
+        self.calcSBBoxes.pop(self.calcSBBoxes.index(self.ui.tGotoSB))
         # Want this to be connected to something else so
         # you can parse a nm input
         self.ui.tNIRLam.textAccepted.connect(self.calcNIRLam)
@@ -769,7 +952,7 @@ class SettingsDialog(QtGui.QDialog):
         self.calcSBBoxes.append(self.ui.tNIRLam)
         
     def initUI(self, settings):
-        self.ui = Ui_Dialog()
+        self.ui = Ui_Settings()
         self.ui.setupUi(self)
         self.ui.cAGPIB.insertItems(0, settings['GPIBChoices'])
         self.ui.cAGPIB.setCurrentIndex(
@@ -798,8 +981,15 @@ class SettingsDialog(QtGui.QDialog):
         self.ui.cbPMHV.setCurrentIndex(
             self.ui.cbPMHV.findText(str(settings["pm_hv"]))
         )
-        self.ui.cbNDFilters.setCurrentIndex(
-            settings["filter"]
+
+        self.ui.cbFilterWhite.setChecked(
+            settings["filter"] & filterBFWhite
+        )
+        self.ui.cbFilterBlue.setChecked(
+            settings["filter"] & filterBFBlue
+        )
+        self.ui.cbFilterTriplet.setChecked(
+            settings["filter"] & filterBFTriplet
         )
 
         self.ui.tFELP.setText(str(settings['fel_power']))
@@ -829,7 +1019,12 @@ class SettingsDialog(QtGui.QDialog):
         settings['nir_power'] = dialog.ui.tNIRP.value()
         settings['nir_lambda'] = dialog.ui.tNIRLam.value()
         settings['pm_hv'] = int(dialog.ui.cbPMHV.currentText())
-        settings["filter"] = dialog.ui.cbNDFilters.currentIndex()
+
+        settings["filter"] = filterBFWhite * int(dialog.ui.cbFilterWhite.isChecked()) | \
+            filterBFBlue * int(dialog.ui.cbFilterBlue.isChecked()) | \
+            filterBFTriplet * int(dialog.ui.cbFilterTriplet.isChecked())
+
+
         settings["autoSBN"] = int(dialog.ui.tGotoSB.value())
         settings["autoSBW"] = int(dialog.ui.tGotoBound.value())
         settings['fel_power'] = dialog.ui.tFELP.value()
@@ -847,7 +1042,7 @@ class SettingsDialog(QtGui.QDialog):
         bound = self.ui.tGotoBound.value()
 
         self.ui.tStartWN.setText(str(int(sbWN + bound)))
-        self.ui.tStepWN.setText("-1")
+        # self.ui.tStepWN.setText("-1")
         self.ui.tEndWN.setText(str(int(sbWN - bound)))
 
 
@@ -855,6 +1050,32 @@ class SettingsDialog(QtGui.QDialog):
         if val<10000:
             self.ui.tNIRLam.setText("{:.1f}".format(10000000/val))
         self.calcAutoSB()
+
+class MessageDialog(QtGui.QDialog):
+    def __init__(self, parent, message="", duration=3000):
+        if isinstance(parent, str):
+            message = parent
+            parent = None
+        super(MessageDialog, self).__init__(parent=parent)
+        layout  = QtGui.QVBoxLayout(self)
+        text = QtGui.QLabel("<font size='6'>{}</font>".format(message), self)
+        layout.addWidget(text)
+        self.setLayout(layout)
+        self.setModal(False)
+
+        dialogList.append(self)
+
+        self.timer = QtCore.QTimer.singleShot(duration, self.close)
+        self.show()
+        self.raise_()
+
+    def close(self):
+        try:
+            dialogList.remove(self)
+        except Exception as E:
+            print "ERror removing from list, ",E
+
+        super(MessageDialog, self).close()
 
 
 
