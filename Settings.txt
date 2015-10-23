@@ -1,0 +1,49 @@
+{
+    "aGPIB": "Fake",
+    "autoSBN": 2,
+    "autoSBW": 1,
+    "ave": 1,
+    "bcpmBG": [
+        3.30721951e-05,
+        8.07075122e-05
+    ],
+    "bcpmSB": [
+        0.000201,
+        0.00020104
+    ],
+    "bcpyBG": [
+        4.83572869e-05,
+        6.50187459e-05
+    ],
+    "bcpyCD": [
+        0.000200572938,
+        0.000201179023
+    ],
+    "bcpyFP": [
+        0.000144993751,
+        0.000179149743
+    ],
+    "collectingData": false,
+    "collectingScope": true,
+    "currentScan": {},
+    "currentWN": 0,
+    "endWN": 12558.0,
+    "fel_lambda": 17.0,
+    "fel_power": 0.0,
+    "fel_reprate": 0.75,
+    "filter": 0,
+    "nir_lambda": 12525.0,
+    "nir_power": 50.0,
+    "notPaused": true,
+    "pmCh": 2,
+    "pm_hv": 700,
+    "pyCh": 3,
+    "sGPIB": "Fake",
+    "saveComments": "",
+    "saveLocation": ".",
+    "saveName": "herewego",
+    "seriesName": "{NIRP}",
+    "startWN": 12560.0,
+    "stepWN": -1.0,
+    "temperature": 0.0
+}
