@@ -687,9 +687,21 @@ class MainWin(QtGui.QMainWindow):
         newData[wnIdx, range(len(data[:,3]))] = data[:,3]
         # sum over them, ignoring the nan values
         newVal = np.nanmean(newData, axis=1)
+        errs = np.nanstd(newData, axis=1)/np.sqrt(
+            np.sum(1-np.isnan(newData), axis=1)
+        )
         label = self.getSeries() + '_' + str(self.ui.tSidebandNumber.text())
-        self.ui.gScan.plot(wn, newVal, name=label, pen = plotColors.next())
+        col = plotColors.next()
+        err = pg.ErrorBarItem(
+            x=wn,
+            y = newVal,
+            top=errs,
+            bottom = errs,
+            pen = col
+        )
 
+        self.ui.gScan.plot(wn, newVal, name=label, pen = col)
+        self.ui.gScan.addItem(err)
         self.statusSig.emit(['Done', 3000])
 
     def collectScopeLoop(self):
