@@ -386,7 +386,7 @@ class MainWin(QtGui.QMainWindow):
             print 'Agilent opened'
         except:
             print 'Error opening Agilent. Adding Fake'
-            self.settings['sGPIB'] = 'Fake'
+            self.settings['aGPIB'] = 'Fake'
             self.Agil = Agilent6000(self.settings['aGPIB'])
             
         # self.Agil.setTrigger()
@@ -603,9 +603,16 @@ class MainWin(QtGui.QMainWindow):
                     break
             # Now want to take data. This means we need to wait for the oscilloscope to
             # finish collecting its current round. Enter a waiting loop.
+                # Note: the event loop has to be instantiated here. I'm not sure why,
+                # probably a main thread/worker thread/mutexing bullshit reason.
                 self.waitingForDataLoop = QtCore.QEventLoop()
                 self.updateDataSig.connect(self.waitingForDataLoop.exit)
                 self.waitingForDataLoop.exec_()
+                # If you don't disconnect it, you get a really bad memory leak
+                # I think qt will keep an internal reference when you connect
+                # signals/slots, and this was just creating a vast amount of
+                # qeventloop's
+                self.updateDataSig.disconnect(self.waitingForDataLoop.exit)
                 refFP, refCD, sig = self.integrateData()
 
                 if self.settings['pm_hv'] == 700:
