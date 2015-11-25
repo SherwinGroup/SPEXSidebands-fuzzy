@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'C:\Users\dvalovcin\Documents\GitHub\SPEXSidebands-fuzzy\MainWindow.ui'
 #
-# Created: Fri Oct 23 10:25:26 2015
+# Created: Wed Nov 25 13:04:53 2015
 #      by: PyQt4 UI code generator 4.10.4
 #
 # WARNING! All changes made in this file will be lost!
@@ -181,7 +181,7 @@ class Ui_MainWindow(object):
         self.tab_2.setObjectName(_fromUtf8("tab_2"))
         self.verticalLayout_3 = QtGui.QVBoxLayout(self.tab_2)
         self.verticalLayout_3.setObjectName(_fromUtf8("verticalLayout_3"))
-        self.gScan = PlotWidget(self.tab_2)
+        self.gScan = ClickablePlotWidget(self.tab_2)
         self.gScan.setObjectName(_fromUtf8("gScan"))
         self.verticalLayout_3.addWidget(self.gScan)
         self.horizontalLayout_4 = QtGui.QHBoxLayout()
@@ -289,3 +289,4 @@ class Ui_MainWindow(object):
 
 from pyqtgraph import PlotWidget
 from InstsAndQt.customQt import QFNumberEdit
+from clickablePlotWidget import ClickablePlotWidget

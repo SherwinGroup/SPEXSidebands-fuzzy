@@ -359,7 +359,7 @@
        </attribute>
        <layout class="QVBoxLayout" name="verticalLayout_3">
         <item>
-         <widget class="PlotWidget" name="gScan"/>
+         <widget class="ClickablePlotWidget" name="gScan"/>
         </item>
         <item>
          <layout class="QHBoxLayout" name="horizontalLayout_4">
@@ -453,6 +453,11 @@
    <class>PlotWidget</class>
    <extends>QGraphicsView</extends>
    <header>pyqtgraph</header>
+  </customwidget>
+  <customwidget>
+   <class>ClickablePlotWidget</class>
+   <extends>QGraphicsView</extends>
+   <header>clickablePlotWidget</header>
   </customwidget>
  </customwidgets>
  <tabstops>

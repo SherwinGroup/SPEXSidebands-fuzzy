@@ -1,0 +1,156 @@
+# -*- coding: utf-8 -*-
+
+# Form implementation generated from reading ui file 'clickablePlotSettings.ui'
+#
+# Created: Fri Nov  6 08:21:19 2015
+#      by: PyQt4 UI code generator 4.11.3
+#
+# WARNING! All changes made in this file will be lost!
+
+from PyQt4 import QtCore, QtGui
+
+try:
+    _fromUtf8 = QtCore.QString.fromUtf8
+except AttributeError:
+    def _fromUtf8(s):
+        return s
+
+try:
+    _encoding = QtGui.QApplication.UnicodeUTF8
+    def _translate(context, text, disambig):
+        return QtGui.QApplication.translate(context, text, disambig, _encoding)
+except AttributeError:
+    def _translate(context, text, disambig):
+        return QtGui.QApplication.translate(context, text, disambig)
+
+class Ui_LineSettingsDialog(object):
+    def setupUi(self, LineSettingsDialog):
+        LineSettingsDialog.setObjectName(_fromUtf8("LineSettingsDialog"))
+        LineSettingsDialog.resize(561, 466)
+        self.buttonBox = QtGui.QDialogButtonBox(LineSettingsDialog)
+        self.buttonBox.setGeometry(QtCore.QRect(60, 380, 341, 32))
+        self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
+        self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Cancel|QtGui.QDialogButtonBox.Ok)
+        self.buttonBox.setObjectName(_fromUtf8("buttonBox"))
+        self.lwCurves = QtGui.QListWidget(LineSettingsDialog)
+        self.lwCurves.setGeometry(QtCore.QRect(20, 10, 131, 201))
+        self.lwCurves.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
+        self.lwCurves.setObjectName(_fromUtf8("lwCurves"))
+        self.twCurveSettings = QtGui.QTabWidget(LineSettingsDialog)
+        self.twCurveSettings.setGeometry(QtCore.QRect(180, 20, 415, 246))
+        self.twCurveSettings.setObjectName(_fromUtf8("twCurveSettings"))
+        self.tab = QtGui.QWidget()
+        self.tab.setObjectName(_fromUtf8("tab"))
+        self.verticalLayout = QtGui.QVBoxLayout(self.tab)
+        self.verticalLayout.setObjectName(_fromUtf8("verticalLayout"))
+        self.groupBox_4 = QtGui.QGroupBox(self.tab)
+        self.groupBox_4.setFlat(True)
+        self.groupBox_4.setObjectName(_fromUtf8("groupBox_4"))
+        self.horizontalLayout_3 = QtGui.QHBoxLayout(self.groupBox_4)
+        self.horizontalLayout_3.setObjectName(_fromUtf8("horizontalLayout_3"))
+        self.groupBox = QtGui.QGroupBox(self.groupBox_4)
+        self.groupBox.setFlat(True)
+        self.groupBox.setObjectName(_fromUtf8("groupBox"))
+        self.horizontalLayout = QtGui.QHBoxLayout(self.groupBox)
+        self.horizontalLayout.setObjectName(_fromUtf8("horizontalLayout"))
+        self.sbLineWidth = SpinBox(self.groupBox)
+        self.sbLineWidth.setObjectName(_fromUtf8("sbLineWidth"))
+        self.horizontalLayout.addWidget(self.sbLineWidth)
+        self.horizontalLayout_3.addWidget(self.groupBox)
+        self.groupBox_3 = QtGui.QGroupBox(self.groupBox_4)
+        self.groupBox_3.setFlat(True)
+        self.groupBox_3.setObjectName(_fromUtf8("groupBox_3"))
+        self.horizontalLayout_2 = QtGui.QHBoxLayout(self.groupBox_3)
+        self.horizontalLayout_2.setObjectName(_fromUtf8("horizontalLayout_2"))
+        self.cbLineStyle = QtGui.QComboBox(self.groupBox_3)
+        self.cbLineStyle.setObjectName(_fromUtf8("cbLineStyle"))
+        self.cbLineStyle.addItem(_fromUtf8(""))
+        self.cbLineStyle.addItem(_fromUtf8(""))
+        self.cbLineStyle.addItem(_fromUtf8(""))
+        self.cbLineStyle.addItem(_fromUtf8(""))
+        self.cbLineStyle.addItem(_fromUtf8(""))
+        self.cbLineStyle.addItem(_fromUtf8(""))
+        self.horizontalLayout_2.addWidget(self.cbLineStyle)
+        self.horizontalLayout_3.addWidget(self.groupBox_3)
+        self.colLine = ColorButton(self.groupBox_4)
+        self.colLine.setObjectName(_fromUtf8("colLine"))
+        self.horizontalLayout_3.addWidget(self.colLine)
+        self.verticalLayout.addWidget(self.groupBox_4)
+        self.groupBox_5 = QtGui.QGroupBox(self.tab)
+        self.groupBox_5.setFlat(True)
+        self.groupBox_5.setObjectName(_fromUtf8("groupBox_5"))
+        self.horizontalLayout_4 = QtGui.QHBoxLayout(self.groupBox_5)
+        self.horizontalLayout_4.setObjectName(_fromUtf8("horizontalLayout_4"))
+        self.groupBox_2 = QtGui.QGroupBox(self.groupBox_5)
+        self.groupBox_2.setFlat(True)
+        self.groupBox_2.setObjectName(_fromUtf8("groupBox_2"))
+        self.horizontalLayout_5 = QtGui.QHBoxLayout(self.groupBox_2)
+        self.horizontalLayout_5.setObjectName(_fromUtf8("horizontalLayout_5"))
+        self.sbMarkerSize = SpinBox(self.groupBox_2)
+        self.sbMarkerSize.setObjectName(_fromUtf8("sbMarkerSize"))
+        self.horizontalLayout_5.addWidget(self.sbMarkerSize)
+        self.horizontalLayout_4.addWidget(self.groupBox_2)
+        self.groupBox_6 = QtGui.QGroupBox(self.groupBox_5)
+        self.groupBox_6.setFlat(True)
+        self.groupBox_6.setObjectName(_fromUtf8("groupBox_6"))
+        self.horizontalLayout_6 = QtGui.QHBoxLayout(self.groupBox_6)
+        self.horizontalLayout_6.setObjectName(_fromUtf8("horizontalLayout_6"))
+        self.cbMarkerStyle = QtGui.QComboBox(self.groupBox_6)
+        self.cbMarkerStyle.setObjectName(_fromUtf8("cbMarkerStyle"))
+        self.cbMarkerStyle.addItem(_fromUtf8(""))
+        self.cbMarkerStyle.addItem(_fromUtf8(""))
+        self.cbMarkerStyle.addItem(_fromUtf8(""))
+        self.cbMarkerStyle.addItem(_fromUtf8(""))
+        self.cbMarkerStyle.addItem(_fromUtf8(""))
+        self.cbMarkerStyle.addItem(_fromUtf8(""))
+        self.cbMarkerStyle.addItem(_fromUtf8(""))
+        self.horizontalLayout_6.addWidget(self.cbMarkerStyle)
+        self.horizontalLayout_4.addWidget(self.groupBox_6)
+        self.colMarker = ColorButton(self.groupBox_5)
+        self.colMarker.setObjectName(_fromUtf8("colMarker"))
+        self.horizontalLayout_4.addWidget(self.colMarker)
+        self.verticalLayout.addWidget(self.groupBox_5)
+        self.twCurveSettings.addTab(self.tab, _fromUtf8(""))
+        self.tab_2 = QtGui.QWidget()
+        self.tab_2.setObjectName(_fromUtf8("tab_2"))
+        self.tXOffset = QtGui.QLineEdit(self.tab_2)
+        self.tXOffset.setGeometry(QtCore.QRect(142, 40, 101, 21))
+        self.tXOffset.setObjectName(_fromUtf8("tXOffset"))
+        self.tYOffset = QtGui.QLineEdit(self.tab_2)
+        self.tYOffset.setGeometry(QtCore.QRect(192, 100, 81, 21))
+        self.tYOffset.setObjectName(_fromUtf8("tYOffset"))
+        self.twCurveSettings.addTab(self.tab_2, _fromUtf8(""))
+
+        self.retranslateUi(LineSettingsDialog)
+        self.twCurveSettings.setCurrentIndex(0)
+        QtCore.QObject.connect(self.buttonBox, QtCore.SIGNAL(_fromUtf8("accepted()")), LineSettingsDialog.accept)
+        QtCore.QObject.connect(self.buttonBox, QtCore.SIGNAL(_fromUtf8("rejected()")), LineSettingsDialog.reject)
+        QtCore.QMetaObject.connectSlotsByName(LineSettingsDialog)
+
+    def retranslateUi(self, LineSettingsDialog):
+        LineSettingsDialog.setWindowTitle(_translate("LineSettingsDialog", "Dialog", None))
+        self.groupBox_4.setTitle(_translate("LineSettingsDialog", "Line", None))
+        self.groupBox.setTitle(_translate("LineSettingsDialog", "Linewidth", None))
+        self.groupBox_3.setTitle(_translate("LineSettingsDialog", "Style", None))
+        self.cbLineStyle.setItemText(0, _translate("LineSettingsDialog", "None", None))
+        self.cbLineStyle.setItemText(1, _translate("LineSettingsDialog", "Solid", None))
+        self.cbLineStyle.setItemText(2, _translate("LineSettingsDialog", "Dashed", None))
+        self.cbLineStyle.setItemText(3, _translate("LineSettingsDialog", "Dotted", None))
+        self.cbLineStyle.setItemText(4, _translate("LineSettingsDialog", "Dash Dot", None))
+        self.cbLineStyle.setItemText(5, _translate("LineSettingsDialog", "Dash Dot Dot", None))
+        self.colLine.setText(_translate("LineSettingsDialog", "PushButton", None))
+        self.groupBox_5.setTitle(_translate("LineSettingsDialog", "Marker", None))
+        self.groupBox_2.setTitle(_translate("LineSettingsDialog", "Size", None))
+        self.groupBox_6.setTitle(_translate("LineSettingsDialog", "Style", None))
+        self.cbMarkerStyle.setItemText(0, _translate("LineSettingsDialog", "None", None))
+        self.cbMarkerStyle.setItemText(1, _translate("LineSettingsDialog", "o", None))
+        self.cbMarkerStyle.setItemText(2, _translate("LineSettingsDialog", "s", None))
+        self.cbMarkerStyle.setItemText(3, _translate("LineSettingsDialog", "t", None))
+        self.cbMarkerStyle.setItemText(4, _translate("LineSettingsDialog", "d", None))
+        self.cbMarkerStyle.setItemText(5, _translate("LineSettingsDialog", "+", None))
+        self.cbMarkerStyle.setItemText(6, _translate("LineSettingsDialog", "x", None))
+        self.colMarker.setText(_translate("LineSettingsDialog", "PushButton", None))
+        self.twCurveSettings.setTabText(self.twCurveSettings.indexOf(self.tab), _translate("LineSettingsDialog", "Line Style", None))
+        self.twCurveSettings.setTabText(self.twCurveSettings.indexOf(self.tab_2), _translate("LineSettingsDialog", "Offset", None))
+
+from pyqtgraph import SpinBox, ColorButton

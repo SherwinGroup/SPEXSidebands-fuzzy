@@ -590,7 +590,8 @@ class MainWin(QtGui.QMainWindow):
                 break
             self.settings['collectingData'] = False
             self.SPEX.gotoWN(wavenumber)
-            self.statusSig.emit(['Wavenumber: {}. No. {}'.format(wavenumber, 0), 0])
+            self.statusSig.emit(['Wavenumber: {}/{}. No. {}/{}'.format(
+                wavenumber, WNRange[-1], 0, self.settings['ave']), 0])
             self.wnUpdateSig.emit(str(wavenumber), str(self.SPEX.currentPositionWN))
             num = 0 # number of averages. Doing it this way so that if we want to implement
                     # something where we don't count a number, then we can decline decrementing
@@ -647,8 +648,8 @@ class MainWin(QtGui.QMainWindow):
                         self.settings['allData'], [[wavenumber, refFP, refCD, sig]],
                         axis=0)
                     self.sigNewStep.emit()
-                    self.statusSig.emit(['Wavenumber: {}/{}. No. {}'.format(
-                        wavenumber, WNRange[-1], num), 0])
+                    self.statusSig.emit(['Wavenumber: {}/{}. No. {}/{}'.format(
+                        wavenumber, WNRange[-1], num, self.settings['ave']), 0])
 
         filename = str(self.ui.tSaveName.text())
 
@@ -704,15 +705,15 @@ class MainWin(QtGui.QMainWindow):
         )
         label = self.getSeries() + '_' + str(self.ui.tSidebandNumber.text())
         col = plotColors.next()
-        err = pg.ErrorBarItem(
-            x=wn,
-            y = newVal,
-            height=2*errs,
-            pen = col
-        )
-        pg.PlotItem
-        self.ui.gScan.plot(wn, newVal, name=label, pen = col)
-        self.ui.gScan.addItem(err)
+        # err = pg.ErrorBarItem(
+        #     x=wn,
+        #     y = newVal,
+        #     height=2*errs,
+        #     pen = col
+        # )
+        #
+        # self.ui.gScan.plot(wn, newVal, name=label, pen = col)
+        self.ui.gScan.errorbars(x=wn, y=newVal, errorbars=errs, pen=col, name=label)
         self.statusSig.emit(['Done', 3000])
 
     def collectScopeLoop(self):
