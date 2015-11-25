@@ -75,8 +75,8 @@ filterBFTriplet  = 0b100
 dialogList = []
 
 
-plotColors = [pg.intColor(i, hues = 9,
-                          values = 2,
+plotColors = [pg.intColor(i, hues = 20,
+                          values = 1,
                           maxValue = 255,
                           minValue = 150,
                           maxHue = 360,
@@ -482,7 +482,7 @@ class MainWin(QtGui.QMainWindow):
         # linearregion
         pyCD = np.mean(pyD[pyCDidx[0]:pyCDidx[1], 1])
 
-        return pyFP-pyBG, pyCD-pyBG, pmSG-pmBG
+        return pyFP-pyBG, pyCD-pyBG, pyBG, pmSG-pmBG
 
 
     @staticmethod
@@ -613,7 +613,7 @@ class MainWin(QtGui.QMainWindow):
                 # signals/slots, and this was just creating a vast amount of
                 # qeventloop's
                 self.updateDataSig.disconnect(self.waitingForDataLoop.exit)
-                refFP, refCD, sig = self.integrateData()
+                refFP, refCD, refBG, sig = self.integrateData()
 
                 if self.settings['pm_hv'] == 700:
                     mult = 10
@@ -634,16 +634,21 @@ class MainWin(QtGui.QMainWindow):
 
                 self.boxcarSig.emit(refFP, refCD, sig)
                 isValid = True #Flag for telling whether to keep the data or not
-                if (refCD - refFP)/refCD < 0.5:
-                    # misfire if the CD isn't 50% of the pulse
+                if refCD < 5.*refBG:
+                    # misfire if the CD isn't 5x the background
                     isValid = False
+                if str(self.ui.tSidebandNumber.text()) == '0':
+                    # Don't worry about FEL when looking at the
+                    # laser line
+                    isValid = True
                 if isValid:
                     num += 1
                     self.settings['allData'] = np.append(
                         self.settings['allData'], [[wavenumber, refFP, refCD, sig]],
                         axis=0)
                     self.sigNewStep.emit()
-                    self.statusSig.emit(['Wavenumber: {}. No. {}'.format(wavenumber, num), 0])
+                    self.statusSig.emit(['Wavenumber: {}/{}. No. {}'.format(
+                        wavenumber, WNRange[-1], num), 0])
 
         filename = str(self.ui.tSaveName.text())
 
@@ -702,11 +707,10 @@ class MainWin(QtGui.QMainWindow):
         err = pg.ErrorBarItem(
             x=wn,
             y = newVal,
-            top=errs,
-            bottom = errs,
+            height=2*errs,
             pen = col
         )
-
+        pg.PlotItem
         self.ui.gScan.plot(wn, newVal, name=label, pen = col)
         self.ui.gScan.addItem(err)
         self.statusSig.emit(['Done', 3000])
