@@ -75,6 +75,17 @@ filterBFTriplet  = 0b100
 dialogList = []
 
 
+plotColors = [pg.intColor(i, hues = 20,
+                          values = 1,
+                          maxValue = 255,
+                          minValue = 150,
+                          maxHue = 360,
+                          minHue = 0,
+                          sat = 255) for i in range(20)]
+
+import itertools
+plotColors = itertools.cycle(plotColors)
+
 
 
 class MainWin(QtGui.QMainWindow):
@@ -97,6 +108,8 @@ class MainWin(QtGui.QMainWindow):
     # Signal emitted each time a data point is taken, used
     # for updating graph in real time
     sigNewStep = QtCore.pyqtSignal()
+
+    sigScanFinished = QtCore.pyqtSignal()
     
     #Thread which handles polling the oscilloscope
     scopeCollectionThread = None
@@ -105,16 +118,23 @@ class MainWin(QtGui.QMainWindow):
     def __init__(self):
         super(MainWin, self).__init__()
         self.initSettings()
+        if self.checkSaveFile():
+            self.loadSettings()
+
+
         self.initUI()
         self.pyDataSig.connect(self.updatePyroGraph)
         self.pmDataSig.connect(self.updatePMTGraph)
         self.statusSig.connect(self.updateStatusBar)
         self.boxcarSig.connect(self.updateBoxcarTexts)
         self.sigNewStep.connect(self.updateScan)
+        self.sigScanFinished.connect(self.finishScan)
+
         
         self.openSPEX()
         self.openAgi()
         self.SPEXWindow = None
+        self.pulseWidth = 2e-6
         
     def initUI(self):
         self.ui = Ui_MainWindow()
@@ -134,6 +154,7 @@ class MainWin(QtGui.QMainWindow):
         plotitem.setLabel('bottom',text='Time', units='s')
 
         self.pScan = self.ui.gScan.plot(pen='k')
+        self.ui.gScan.addLegend()
         plotitem = self.ui.gScan.getPlotItem()
         plotitem.setLabel('top',text='PMT')
         plotitem.setLabel('left',text='Integrated Voltage',units='V')
@@ -149,6 +170,16 @@ class MainWin(QtGui.QMainWindow):
         lrtb.append([self.ui.tPyCdSt, self.ui.tPyCdEn])
         lrtb.append([self.ui.tPmBgSt, self.ui.tPmBgEn])
         lrtb.append([self.ui.tPmSgSt, self.ui.tPmSgEn])
+
+        d = {0: "bcpyBG",
+             1: "bcpyFP",
+             2: "bcpyCD",
+             3: "bcpmBG",
+             4: "bcpmSB"
+        }
+        for i, v in enumerate(lrtb):
+            v[0].setText(str(self.settings[d[i]][0]))
+            v[1].setText(str(self.settings[d[i]][1]))
         for i in lrtb:
             for j in i:
                 j.textAccepted.connect(self.updateLinearRegionsFromText)
@@ -160,7 +191,7 @@ class MainWin(QtGui.QMainWindow):
         self.ui.bQuickStart.clicked.connect(self.quickStartScan)
         self.ui.bStart.clicked.connect(self.startScan)
         self.ui.bPause.clicked[bool].connect(self.togglePause)
-        self.ui.bPause.setChecked(True)
+        self.ui.bPause.setChecked(not self.settings['notPaused'])
 #        self.ui.bAbort.clicked.connect(lambda self=self: setattr(self, "settings['runningScan']", False))
         self.ui.bAbort.clicked.connect(self.abortScan)
         self.ui.bSaveWaveforms.clicked.connect(self.saveWaveforms)
@@ -168,10 +199,17 @@ class MainWin(QtGui.QMainWindow):
         self.ui.bInitPyro.clicked.connect(self.initRegions)
 
 
+        self.ui.tSaveName.editingFinished.connect(self.makeSaveDir)
+        self.ui.bClearScan.clicked.connect(self.clearScans)
+
         self.ui.mFileSettings.triggered.connect(self.launchSettings)
         self.ui.mFileExit.triggered.connect(self.closeEvent)
         self.ui.mSpexOpen.triggered.connect(self.openSPEXWindow)
-        
+
+        self.ui.tSaveName.setText(self.settings['saveName'])
+        self.ui.tSeries.setText(self.settings['seriesName'])
+        self.ui.tSidebandNumber.setText(str(self.settings['autoSBN']))
+
         self.tGeneralSB = QtGui.QLabel()
         self.tbcPyroFP = QtGui.QLabel()
         self.tbcPyroCD = QtGui.QLabel()
@@ -203,6 +241,7 @@ class MainWin(QtGui.QMainWindow):
         #saving settings
         s['saveLocation'] = '.'
         s['saveName'] = ''
+        s['seriesName'] = ''
         s['saveComments'] = ''
         s['nir_power'] = 0 #NIR Power
         s['nir_lambda'] = 0 #NIR wavenumber
@@ -263,32 +302,6 @@ class MainWin(QtGui.QMainWindow):
 
     def abortScan(self):
         self.settings['runningScan'] = False
-        
-    def initLinearRegionBounds(self):
-        #initialize array for all 5 boxcar regions
-        self.boxcarRegions = [None]*5
-        
-        bgCol = pg.mkBrush(QtGui.QColor(255, 0, 0, 50))
-        fpCol = pg.mkBrush(QtGui.QColor(0, 0, 255, 50))
-        sgCol = pg.mkBrush(QtGui.QColor(0, 255, 0, 50))
-        
-        #Background region for the pyro plot
-        self.boxcarRegions[0] = pg.LinearRegionItem(self.settings['bcpyBG'], brush = bgCol)
-        self.boxcarRegions[1] = pg.LinearRegionItem(self.settings['bcpyFP'], brush = fpCol)
-        self.boxcarRegions[2] = pg.LinearRegionItem(self.settings['bcpyCD'], brush = sgCol)
-        self.boxcarRegions[3] = pg.LinearRegionItem(self.settings['bcpmBG'], brush = bgCol)
-        self.boxcarRegions[4] = pg.LinearRegionItem(self.settings['bcpmSB'], brush = sgCol)
-        
-        #Connect it all to something that will update values when these all change
-        for i in self.boxcarRegions:
-            i.sigRegionChangeFinished.connect(self.updateLinearRegionValues)
-            
-        self.ui.gPyro.addItem(self.boxcarRegions[0])
-        self.ui.gPyro.addItem(self.boxcarRegions[1])
-        self.ui.gPyro.addItem(self.boxcarRegions[2])
-        self.ui.gSignal.addItem(self.boxcarRegions[3])
-        self.ui.gSignal.addItem(self.boxcarRegions[4])
-        
     def launchSettings(self):
         try:
             res = list(visa.ResourceManager().list_resources())
@@ -305,6 +318,10 @@ class MainWin(QtGui.QMainWindow):
         if not ok:
             return
 
+
+        del newSettings['pyData']
+        del newSettings['pmData']
+        del newSettings['allData']
         # Update the sideband textbox if you used the
         # autocalculator to move to a new one.
         if not self.settings["autoSBN"] == newSettings["autoSBN"]:
@@ -322,7 +339,7 @@ class MainWin(QtGui.QMainWindow):
         oldaGPIB = self.settings['aGPIB']
         oldsGPIB = self.settings['sGPIB']
 
-        self.settings = newSettings
+        self.settings.update(newSettings)
         log.debug("Old Agi GPIB: {}. New Agi GPIB: {}".format(oldaGPIB, newSettings['aGPIB']))
         if not oldaGPIB == newSettings['aGPIB']:
             self.Agil.close()
@@ -337,154 +354,13 @@ class MainWin(QtGui.QMainWindow):
         #enforce the correct sign
         self.settings['stepWN'] = np.sign(self.settings['endWN']-self.settings['startWN'])*np.abs(
                     self.settings['stepWN'])
+        self.saveSettings()
             
     def openSPEXWindow(self):
         if self.SPEXWindow is None:
             self.SPEXWindow = SPEXWin(SPEXInfo = self.SPEX, parent=self)
         else:
             self.SPEXWindow.raise_()
-        
-        
-    def updateLinearRegionValues(self, values):
-        sender = self.sender()
-        sendidx = -1
-        for (i, v) in enumerate(self.boxcarRegions):
-            #I was debugging something. I tried to use id(), which is effectively the memory
-            #location to try and fix it. Found out it was anohter issue, but
-            #id() seems a little safer(?) than just equating them in the sense that
-            #it's explicitly asking if they're the same object, isntead of potentially
-            #calling some weird __eq__() pyqt/graph may have set up
-            if id(sender) == id(v):
-                sendidx = i
-        i = sendidx
-        #Just being paranoid, no reason to think it wouldn't find the proper thing
-        if sendidx<0:
-            return
-        self.linearRegionTextBoxes[i][0].setText('{:.9g}'.format(sender.getRegion()[0]))
-        self.linearRegionTextBoxes[i][1].setText('{:.9g}'.format(sender.getRegion()[1]))
-
-        # Restrict it so the sideband signal is always 40ns
-        # (width of the cavity dump)
-        if sendidx == 4:
-            a = list(sender.getRegion())
-            a[1] = a[0]+40e-9
-            sender.setRegion(a)
-            
-    def updateLinearRegionsFromText(self):
-        sender = self.sender()
-        #figure out where this was sent
-        sendi, sendj = -1, -1
-        for (i, v)in enumerate(self.linearRegionTextBoxes):
-            for (j, w) in enumerate(v):
-                if id(w) == id(sender):
-                    sendi = i
-                    sendj = j
-        
-        i = sendi
-        j = sendj
-        if i==4 and j==1:
-            sender.setText(str(
-                float(self.linearRegionTextBoxes[-1][0].text())+40e-9
-            ))
-        curVals = list(self.boxcarRegions[i].getRegion())
-        curVals[j] = float(sender.text())
-        self.boxcarRegions[i].setRegion(tuple(curVals))
-
-    def initRegions(self):
-        sent = self.sender()
-        boxcarRegions = self.boxcarRegions[0:3] # the ones for the pyro
-        try:
-            length = len(self.settings['pyData'])
-            point = self.settings['pyData'][length/2,0]
-        except:
-            return
-        if sent is self.ui.bInitPMT:
-            boxcarRegions = self.boxcarRegions[-2:] # the ones for the PMT
-            try:
-                length = len(self.settings['pmData'])
-                point = self.settings['pmData'][length/2,0]
-            except:
-                return
-
-        # set all of the linear regions
-        # [[i.setText(str(point)) for i in j] for j in zip(*linearRegions)]
-        # [[i.setText(str(point)) for i in j] for j in zip(*linearRegions)]
-        [i.setRegion((point, point)) for i in boxcarRegions]
-
-
-        
-    def updateSaveLoc(self):
-        fname = str(QtGui.QFileDialog.getExistingDirectory(self, "Choose File Directory...",directory=self.settings['saveLocation']))
-        print 'fname',fname
-        if fname == '':
-            return
-        self.settings['saveLocation'] = fname + '/'
-    
-    def genSaveHeader(self):
-        #Return a string of header information required for processing
-        s = dict()
-        s['nir_power'] = self.settings['nir_power']
-        s['nir_lambda'] = self.settings['nir_lambda']
-        s['pm_hv'] = self.settings['pm_hv']
-        s['fel_power'] = self.settings['fel_power']
-        s['fel_lambda'] = self.settings['fel_lambda']
-        s['fel_reprate'] = self.settings['fel_reprate']
-        s['temperature'] = self.settings['temperature']
-        s["filter"] = ''
-        s["filter"] = s["filter"] + 'White ' if self.settings["filter"] & filterBFWhite else s["filter"]
-        s["filter"] = s["filter"] + 'Blue ' if self.settings["filter"] & filterBFBlue else s["filter"]
-        s["filter"] = s["filter"] + 'Triplet ' if self.settings["filter"] & filterBFTriplet else s["filter"]
-
-        aveWN = np.mean(self.settings["allData"][:,0])
-        # add the actual transmission used, useful if you want
-        # to get the actual scope voltage by multiplying by
-        # this transmission
-        T = 1
-        T = T * mrWhite(1e7/aveWN) if self.settings["filter"] & filterBFWhite else T
-        T = T * mrBlue(1e7/aveWN) if self.settings["filter"] & filterBFBlue else T
-        T = T * mrTriplet(1e7/aveWN) if self.settings["filter"] & filterBFTriplet else T
-        s["filterTrans"] = T
-        s["boxcar_pyroBackground"] = self.boxcarRegions[0].getRegion()
-        s["boxcar_pyroFP"] = self.boxcarRegions[1].getRegion()
-        s["boxcar_pyroSignal"] = self.boxcarRegions[2].getRegion()
-        s["boxcar_PMTBackground"] = self.boxcarRegions[3].getRegion()
-        s["boxcar_PMTSignal"] = self.boxcarRegions[4].getRegion()
-
-        self.settings['saveComments']
-        st = str(self.ui.tSidebandNumber.text()) + "\n"
-        st += json.dumps(s) + "\n"
-        st += self.settings['saveComments'] + "\n"
-        
-        
-        return  st
-    
-    def saveWaveforms(self):
-        pyro = self.settings['pyData']
-        sig = self.settings['pmData']
-
-        if pyro is None: #it's empty
-            return
-
-        num = 1
-        files = glob.glob(self.settings['saveLocation'] + str(self.ui.tSaveName.text()) + '_referenceDetector*.txt')
-
-        num = str(len(files) * num) if len(files)>0 else ''
-        np.savetxt(self.settings['saveLocation'] + str(self.ui.tSaveName.text()) + '_referenceDetector' + num + '.txt',
-                   pyro, header = self.genSaveHeader()+'Voltage (V), Time(s)')
-
-
-
-        num = 1
-        files = glob.glob(self.settings['saveLocation'] + str(self.ui.tSaveName.text()) + '_signalWaveform*.txt')
-        print "found:", files
-
-        num = str(len(files) * num) if len(files)>0 else ''
-        np.savetxt(self.settings['saveLocation'] + str(self.ui.tSaveName.text()) + '_signalWaveform' + num + '.txt',
-                   sig, header = self.genSaveHeader()+'Voltage (V), Time(s)')
-        # np.savetxt(self.settings['saveLocation'] + str(self.ui.tSaveName.text()) + '_signalWaveform.txt',
-        #            sig, header = self.genSaveHeader()+'Voltage (V), Time(s)')
-        
-    
     def openSPEX(self):
         try:
             self.SPEX = SPEX(self.settings['sGPIB'])
@@ -511,7 +387,7 @@ class MainWin(QtGui.QMainWindow):
             print 'Agilent opened'
         except:
             print 'Error opening Agilent. Adding Fake'
-            self.settings['sGPIB'] = 'Fake'
+            self.settings['aGPIB'] = 'Fake'
             self.Agil = Agilent6000(self.settings['aGPIB'])
             
         # self.Agil.setTrigger()
@@ -530,147 +406,6 @@ class MainWin(QtGui.QMainWindow):
         self.scopeCollectionThread = threading.Thread(target = self.collectScopeLoop)
         self.scopeCollectionThread.start()
 
-    def quickStartScan(self):
-        if self.settings['nir_power'] == -1.0:
-            self.settings['startWN'] = 13160
-            self.settings['stepWN'] = -1
-            self.settings['endWN'] = 13130
-            self.settings['ave'] = 3
-        elif self.settings['stepWN'] == 0:
-            self.statusSig.emit(['Please initialize scan settings', 10000])
-            MessageDialog(self, "Please initialize scan settings.", 3000)
-            return
-
-        
-        #wavenumber, ref FP, ref CD, signal
-        self.settings['allData'] = np.empty((0,4))
-        self.settings['currentScan'] = dict()
-        self.updateScan() # clear the graph
-        self.settings['runningScan'] = True
-        self.ui.bStart.setEnabled(False)
-        self.ui.bQuickStart.setEnabled(False)
-        self.statusSig.emit(['Starting Scan', 3000])
-        
-        self.scanRunningThread = threading.Thread(target = self.runScanLoop)
-        self.scanRunningThread.start()
-
-    def startScan(self):
-        """
-        Called to open up settings to confirm
-        PM HV and filters, which we often fuck up.
-        :return:
-        """
-        sets, ok = QuickSettingsDialog.getSettings(self, self.settings)
-        if not ok:
-            return
-
-        # Update the sideband textbox if you used the
-        # autocalculator to move to a new one.
-
-        print self.settings["autoSBN"], sets["autoSBN"]
-
-        if not self.settings["autoSBN"] == sets["autoSBN"]:
-            self.ui.tSidebandNumber.setText(str(sets["autoSBN"]))
-
-        self.settings.update(sets)
-
-        #enforce the correct sign
-        self.settings['stepWN'] = np.sign(self.settings['endWN']-self.settings['startWN'])*np.abs(
-                    self.settings['stepWN'])
-
-
-        self.quickStartScan()
-
-    def runScanLoop(self):
-        WNRange = np.arange(self.settings['startWN'],
-                                self.settings['endWN'], self.settings['stepWN'])
-        WNRange = np.append(WNRange, self.settings['endWN'])
-        
-        for wavenumber in WNRange:
-            if not self.settings['runningScan']:
-                log.info('breaking scan')
-                break
-            self.settings['collectingData'] = False
-            self.SPEX.gotoWN(wavenumber)
-            self.statusSig.emit(['Wavenumber: {}. No. {}'.format(wavenumber, 0), 0])
-            self.wnUpdateSig.emit(str(wavenumber), str(self.SPEX.currentPositionSteps))
-            num = 0 # number of averages. Doing it this way so that if we want to implement
-                    # something where we don't count a number, then we can decline decrementing
-                    # effectively saying the point didn't happen
-            self.settings['collectingData'] = True
-            while num < self.settings['ave']:
-                
-                if not self.settings['runningScan']:
-                    print 'breaking scan'
-                    break
-            # Now want to take data. This means we need to wait for the oscilloscope to
-            # finish collecting its current round. Enter a waiting loop.
-                self.waitingForDataLoop = QtCore.QEventLoop()
-                self.updateDataSig.connect(self.waitingForDataLoop.exit)
-                self.waitingForDataLoop.exec_()
-                refFP, refCD, sig = self.integrateData()
-
-                if self.settings['pm_hv'] == 700:
-                    mult = 10
-                    print "700 V setting, mult = {}".format(mult)
-                else:
-                    mult = 1
-                    print "Not 700 V setting, {}, mult = {}".format(self.settings['pm_hv'], mult)
-
-                mult = 10 if self.settings['pm_hv']==700 else 1
-                sig *= mult # to account for the difference between 700 V and 1kV
-
-                # also account for the attenuation due to the filters
-                T = 1
-                T = T * mrWhite(1e7/wavenumber) if self.settings["filter"] & filterBFWhite else T
-                T = T * mrBlue(1e7/wavenumber) if self.settings["filter"] & filterBFBlue else T
-                T = T * mrTriplet(1e7/wavenumber) if self.settings["filter"] & filterBFTriplet else T
-                sig /= T
-
-                self.boxcarSig.emit(refFP, refCD, sig)
-                isValid = True #Flag for telling whether to keep the data or not
-                if isValid:
-                    num += 1
-                    self.settings['allData'] = np.append(
-                        self.settings['allData'], [[wavenumber, refFP, refCD, sig]],
-                        axis=0)
-                    self.sigNewStep.emit()
-                    self.statusSig.emit(['Wavenumber: {}. No. {}'.format(wavenumber, num), 0])
-            
-            
-
-        filename = str(self.ui.tSaveName.text())
-
-        # Automatically add the sideband to the filename,
-        # using 'p' or 'm' prefix for positive or negative
-        # (since you can't use '-6' and '+6' in filenames
-        sb = str(self.ui.tSidebandNumber.text())
-        if sb: # string is not empty
-            if int(sb)>=0:
-                filename += '_p{}'.format(abs(int(sb)))
-            else:
-                filename += '_m{}'.format(abs(int(sb)))
-
-        filename += '_scanData'
-
-        #save Data. Check if there are any in the folder yet
-        files = glob.glob(os.path.join(self.settings['saveLocation'], filename + '*.txt'))
-        num = len(files)
-
-        np.savetxt(self.settings['saveLocation'] + filename + '{}.txt'.format(num),
-                   self.settings['allData'],
-                   header = self.genSaveHeader() +  'Wavenumber, Integrated front porch, Integrated Cavity dump, integrated signal')
-
-        # np.savetxt(self.settings['saveLocation'] + str(self.ui.tSaveName.text()) + '_scanData' + num + '.txt',
-        #            self.settings['allData'],
-        #            header = self.genSaveHeader() +  'Wavenumber, Integrated front porch, Integrated Cavity dump, integrated signal')
-        
-        #clean up after done
-        self.settings['collectingData'] = False
-        self.settings['runningScan'] = False
-        self.ui.bStart.setEnabled(True)
-        self.ui.bQuickStart.setEnabled(True)
-        self.statusSig.emit(['Done', 3000])
             
     def updateBoxcarTexts(self, v1, v2, v3):
         v1 = '{:.3g}'.format(v1)
@@ -739,8 +474,16 @@ class MainWin(QtGui.QMainWindow):
         pmSG = spi.simps(pmD[pmSGidx[0]:pmSGidx[1],1], pmD[pmSGidx[0]:pmSGidx[1], 0])/(
             pmSGidx[1] - pmSGidx[0]
         )/dt
-        
-        return pyFP-pyBG, pyCD-pyBG, pmSG-pmBG
+
+        # These ones are for an integrating pyro
+        linearCoeff = np.polyfit(*pyD[pyFPidx,:].T, deg=1)
+        pyFP = np.polyval(x = pyD[pyFPidx[-1], 0], p = linearCoeff)
+
+        # for the CD, pick the first index given by the
+        # linearregion
+        pyCD = np.mean(pyD[pyCDidx[0]:pyCDidx[1], 1])
+
+        return pyFP-pyBG, pyCD-pyBG, pyBG, pmSG-pmBG
 
 
     @staticmethod
@@ -769,31 +512,210 @@ class MainWin(QtGui.QMainWindow):
         else:
 #            self.ui.statusbar.showMessage(args[0], args[1])
             self.tGeneralSB.setText(args[0])
-            
-    def updatePyroGraph(self, data):
-        self.settings['pyData'] = data
-        self.pPyro.setData(data[:,0], data[:,1])
-        
-    def updatePMTGraph(self, data):
-        self.settings['pmData'] = data
-        self.pPMT.setData(data[:,0], data[:,1])
 
-    def updateScan(self):
+    def getSeries(self):
+        sers = str(self.ui.tSeries.text())
+        sers = sers.format(NIRP=self.settings['nir_power'],
+                     NIRL=self.settings['nir_lambda'],
+                     FELP=self.settings['fel_power'],
+                     FELL=self.settings['fel_lambda'],
+                     TEMP=self.settings['temperature'],
+                     PMHV=self.settings['pm_hv'])
+        return sers
+
+
+    @staticmethod
+    def _____LOOPING():pass
+
+
+    def quickStartScan(self):
+        if self.settings['nir_power'] == -1.0:
+            self.settings['startWN'] = 13160
+            self.settings['stepWN'] = -1
+            self.settings['endWN'] = 13130
+            self.settings['ave'] = 3
+        elif self.settings['stepWN'] == 0:
+            self.statusSig.emit(['Please initialize scan settings', 10000])
+            MessageDialog(self, "Please initialize scan settings.", 3000)
+            return
+        self.saveSettings()
+
+
+        #wavenumber, ref FP, ref CD, signal
+        self.settings['allData'] = np.empty((0,4))
+        self.settings['currentScan'] = dict()
+        self.updateScan() # clear the graph
+        self.settings['runningScan'] = True
+        self.ui.bStart.setEnabled(False)
+        self.ui.bQuickStart.setEnabled(False)
+        self.statusSig.emit(['Starting Scan', 3000])
+
+        self.scanRunningThread = threading.Thread(target = self.runScanLoop)
+        self.scanRunningThread.start()
+
+    def startScan(self):
+        """
+        Called to open up settings to confirm
+        PM HV and filters, which we often fuck up.
+        :return:
+        """
+        sets, ok = QuickSettingsDialog.getSettings(self, self.settings)
+        if not ok:
+            return
+
+        # Update the sideband textbox if you used the
+        # autocalculator to move to a new one.
+
+        print self.settings["autoSBN"], sets["autoSBN"]
+
+        if not self.settings["autoSBN"] == sets["autoSBN"]:
+            self.ui.tSidebandNumber.setText(str(sets["autoSBN"]))
+
+        self.settings.update(sets)
+
+        #enforce the correct sign
+        self.settings['stepWN'] = np.sign(self.settings['endWN']-self.settings['startWN'])*np.abs(
+                    self.settings['stepWN'])
+
+
+        self.quickStartScan()
+
+    def runScanLoop(self):
+        WNRange = np.arange(self.settings['startWN'],
+                                self.settings['endWN'], self.settings['stepWN'])
+        WNRange = np.append(WNRange, self.settings['endWN'])
+
+        for wavenumber in WNRange:
+            if not self.settings['runningScan']:
+                log.info('breaking scan')
+                break
+            self.settings['collectingData'] = False
+            self.SPEX.gotoWN(wavenumber)
+            self.statusSig.emit(['Wavenumber: {}/{}. No. {}/{}'.format(
+                wavenumber, WNRange[-1], 0, self.settings['ave']), 0])
+            self.wnUpdateSig.emit(str(wavenumber), str(self.SPEX.currentPositionWN))
+            num = 0 # number of averages. Doing it this way so that if we want to implement
+                    # something where we don't count a number, then we can decline decrementing
+                    # effectively saying the point didn't happen
+            self.settings['collectingData'] = True
+            while num < self.settings['ave']:
+
+                if not self.settings['runningScan']:
+                    print 'breaking scan'
+                    break
+            # Now want to take data. This means we need to wait for the oscilloscope to
+            # finish collecting its current round. Enter a waiting loop.
+                # Note: the event loop has to be instantiated here. I'm not sure why,
+                # probably a main thread/worker thread/mutexing bullshit reason.
+                self.waitingForDataLoop = QtCore.QEventLoop()
+                self.updateDataSig.connect(self.waitingForDataLoop.exit)
+                self.waitingForDataLoop.exec_()
+                # If you don't disconnect it, you get a really bad memory leak
+                # I think qt will keep an internal reference when you connect
+                # signals/slots, and this was just creating a vast amount of
+                # qeventloop's
+                self.updateDataSig.disconnect(self.waitingForDataLoop.exit)
+                refFP, refCD, refBG, sig = self.integrateData()
+
+                if self.settings['pm_hv'] == 700:
+                    mult = 10
+                    # print "700 V setting, mult = {}".format(mult)
+                else:
+                    mult = 1
+                    # print "Not 700 V setting, {}, mult = {}".format(self.settings['pm_hv'], mult)
+
+                mult = 10 if self.settings['pm_hv']==700 else 1
+                sig *= mult # to account for the difference between 700 V and 1kV
+
+                # also account for the attenuation due to the filters
+                T = 1
+                T = T * mrWhite(1e7/wavenumber) if self.settings["filter"] & filterBFWhite else T
+                T = T * mrBlue(1e7/wavenumber) if self.settings["filter"] & filterBFBlue else T
+                T = T * mrTriplet(1e7/wavenumber) if self.settings["filter"] & filterBFTriplet else T
+                sig /= T
+
+                self.boxcarSig.emit(refFP, refCD, sig)
+                isValid = True #Flag for telling whether to keep the data or not
+                if refCD < 5.*refBG:
+                    # misfire if the CD isn't 5x the background
+                    isValid = False
+                if str(self.ui.tSidebandNumber.text()) == '0':
+                    # Don't worry about FEL when looking at the
+                    # laser line
+                    isValid = True
+                if isValid:
+                    num += 1
+                    self.settings['allData'] = np.append(
+                        self.settings['allData'], [[wavenumber, refFP, refCD, sig]],
+                        axis=0)
+                    self.sigNewStep.emit()
+                    self.statusSig.emit(['Wavenumber: {}/{}. No. {}/{}'.format(
+                        wavenumber, WNRange[-1], num, self.settings['ave']), 0])
+
+        filename = str(self.ui.tSaveName.text())
+
+        # Automatically add the sideband to the filename,
+        # using 'p' or 'm' prefix for positive or negative
+        # (since you can't use '-6' and '+6' in filenames
+        sb = str(self.ui.tSidebandNumber.text())
+        if sb: # string is not empty
+            if int(sb)>=0:
+                filename += '_p{}'.format(abs(int(sb)))
+            else:
+                filename += '_m{}'.format(abs(int(sb)))
+
+        filename += '_scanData'
+
+        #save Data. Check if there are any in the folder yet
+        files = glob.glob(os.path.join(self.settings['saveLocation'],str(self.ui.tSaveName.text())
+                                       , filename + '*.txt'))
+        num = len(files)
+
+        np.savetxt(os.path.join(
+            self.settings['saveLocation'],str(self.ui.tSaveName.text()),'{}{}.txt'.format(filename, num)),
+                   self.settings['allData'],
+                   header = self.genSaveHeader() +  'Wavenumber, Integrated front porch, Integrated Cavity dump, integrated signal')
+
+        #clean up after done
+        self.sigScanFinished.emit()
+
+    def finishScan(self):
+        self.settings['collectingData'] = False
+        self.settings['runningScan'] = False
+        self.ui.bStart.setEnabled(True)
+        self.ui.bQuickStart.setEnabled(True)
+
+        # Plot the new data as an independent line
+
         data = self.settings["allData"]
-        # Find duplicates
+        # Find duplicates. wnIdx is a list such that
+        # d[i, 0] = wn[wnIdx[i]]
         wn, wnIdx = np.unique(data[:,0], return_inverse=True)
         # make a nan array for easy summing
-        newData = np.empty((len(wn), len(data[:,3]))) * np.nan
+        newData = np.empty((len(wn), len(wnIdx) ))
+        newData.fill(np.nan)
+
         # Set the array of data
+        # This separates it so all of the data for one
+        # wavenumber is in one row, and the rest are nan
         newData[wnIdx, range(len(data[:,3]))] = data[:,3]
-        # sum over them
+        # sum over them, ignoring the nan values
         newVal = np.nanmean(newData, axis=1)
-        self.pScan.setData(wn, newVal)
-
-
-        
-
-
+        errs = np.nanstd(newData, axis=1)/np.sqrt(
+            np.sum(1-np.isnan(newData), axis=1)
+        )
+        label = self.getSeries() + '_' + str(self.ui.tSidebandNumber.text())
+        col = plotColors.next()
+        # err = pg.ErrorBarItem(
+        #     x=wn,
+        #     y = newVal,
+        #     height=2*errs,
+        #     pen = col
+        # )
+        #
+        # self.ui.gScan.plot(wn, newVal, name=label, pen = col)
+        self.ui.gScan.errorbars(x=wn, y=newVal, errorbars=errs, pen=col, name=label)
+        self.statusSig.emit(['Done', 3000])
 
     def collectScopeLoop(self):
         while self.settings['collectingScope']:
@@ -812,8 +734,301 @@ class MainWin(QtGui.QMainWindow):
                 self.pmDataSig.emit(pmData)
                 self.updateDataSig.emit()
 #            time.sleep(.5)
-            
+
+    @staticmethod
+    def _____GRAPH_UPDATES():pass
+
+    def initRegions(self):
+        sent = self.sender()
+        boxcarRegions = self.boxcarRegions[0:3] # the ones for the pyro
+        try:
+            length = len(self.settings['pyData'])
+            point = self.settings['pyData'][length/2,0]
+        except:
+            return
+        if sent is self.ui.bInitPMT:
+            boxcarRegions = self.boxcarRegions[-2:] # the ones for the PMT
+            try:
+                length = len(self.settings['pmData'])
+                point = self.settings['pmData'][length/2,0]
+            except:
+                return
+
+        # set all of the linear regions
+        # [[i.setText(str(point)) for i in j] for j in zip(*linearRegions)]
+        # [[i.setText(str(point)) for i in j] for j in zip(*linearRegions)]
+        [i.setRegion((point, point)) for i in boxcarRegions]
+
+    def initLinearRegionBounds(self):
+        #initialize array for all 5 boxcar regions
+        self.boxcarRegions = [None]*5
+
+        bgCol = pg.mkBrush(QtGui.QColor(255, 0, 0, 50))
+        fpCol = pg.mkBrush(QtGui.QColor(0, 0, 255, 50))
+        sgCol = pg.mkBrush(QtGui.QColor(0, 255, 0, 50))
+
+        #Background region for the pyro plot
+        self.boxcarRegions[0] = pg.LinearRegionItem(self.settings['bcpyBG'], brush = bgCol)
+        self.boxcarRegions[1] = pg.LinearRegionItem(self.settings['bcpyFP'], brush = fpCol)
+        self.boxcarRegions[2] = pg.LinearRegionItem(self.settings['bcpyCD'], brush = sgCol)
+        self.boxcarRegions[3] = pg.LinearRegionItem(self.settings['bcpmBG'], brush = bgCol)
+        self.boxcarRegions[4] = pg.LinearRegionItem(self.settings['bcpmSB'], brush = sgCol)
+
+        #Connect it all to something that will update values when these all change
+        for i in self.boxcarRegions:
+            i.sigRegionChangeFinished.connect(self.updateLinearRegionValues)
+
+        self.ui.gPyro.addItem(self.boxcarRegions[0])
+        self.ui.gPyro.addItem(self.boxcarRegions[1])
+        self.ui.gPyro.addItem(self.boxcarRegions[2])
+        self.ui.gSignal.addItem(self.boxcarRegions[3])
+        self.ui.gSignal.addItem(self.boxcarRegions[4])
+
+
+    def updateLinearRegionValues(self, values):
+        sender = self.sender()
+        sendidx = -1
+        for (i, v) in enumerate(self.boxcarRegions):
+            #I was debugging something. I tried to use id(), which is effectively the memory
+            #location to try and fix it. Found out it was anohter issue, but
+            #id() seems a little safer(?) than just equating them in the sense that
+            #it's explicitly asking if they're the same object, isntead of potentially
+            #calling some weird __eq__() pyqt/graph may have set up
+            if id(sender) == id(v):
+                sendidx = i
+        i = sendidx
+        #Just being paranoid, no reason to think it wouldn't find the proper thing
+        if sendidx<0:
+            return
+        self.linearRegionTextBoxes[i][0].setText('{:.9g}'.format(sender.getRegion()[0]))
+        self.linearRegionTextBoxes[i][1].setText('{:.9g}'.format(sender.getRegion()[1]))
+
+        # Restrict it so the sideband signal is always 40ns
+        # (width of the cavity dump)
+        if sendidx == 4:
+            a = list(sender.getRegion())
+            a[1] = a[0]+self.pulseWidth
+            sender.setRegion(a)
+        d = {0: "bcpyBG",
+             1: "bcpyFP",
+             2: "bcpyCD",
+             3: "bcpmBG",
+             4: "bcpmSB"
+        }
+        self.settings[d[i]] = list(sender.getRegion())
+        self.saveSettings()
+
+    def updateLinearRegionsFromText(self):
+        sender = self.sender()
+        #figure out where this was sent
+        sendi, sendj = -1, -1
+        for (i, v)in enumerate(self.linearRegionTextBoxes):
+            for (j, w) in enumerate(v):
+                if id(w) == id(sender):
+                    sendi = i
+                    sendj = j
+
+        i = sendi
+        j = sendj
+        if i==4:
+            self.linearRegionTextBoxes[i][1-j].blockSignals(True)
+            self.linearRegionTextBoxes[i][1-j].setText(str(
+                float(sender.text()) + (-1)**(j) * self.pulseWidth)
+            )
+            self.linearRegionTextBoxes[i][1-j].blockSignals(False)
+            # sender.setText(str(
+            #     float(self.linearRegionTextBoxes[-1][0].text())+40e-9
+            # ))
+            curVals = [float(ii.text()) for ii in self.linearRegionTextBoxes[i]]
+        else:
+            curVals = list(self.boxcarRegions[i].getRegion())
+            curVals[j] = float(sender.text())
+
+        self.boxcarRegions[i].blockSignals(True)
+        self.boxcarRegions[i].setRegion(tuple(curVals))
+        self.boxcarRegions[i].blockSignals(False)
+
+        d = {0: "bcpyBG",
+             1: "bcpyFP",
+             2: "bcpyCD",
+             3: "bcpmBG",
+             4: "bcpmSB"
+        }
+        self.settings[d[i]] = list(curVals)
+
+
+        self.saveSettings()
+
+    def updatePyroGraph(self, data):
+        self.settings['pyData'] = data
+        self.pPyro.setData(data[:,0], data[:,1])
+
+    def updatePMTGraph(self, data):
+        self.settings['pmData'] = data
+        self.pPMT.setData(data[:,0], data[:,1])
+
+    def updateScan(self):
+        data = self.settings["allData"]
+        # Find duplicates. wnIdx is a list such that
+        # d[i, 0] = wn[wnIdx[i]]
+        wn, wnIdx = np.unique(data[:,0], return_inverse=True)
+        # make a nan array for easy summing
+        newData = np.empty((len(wn), len(wnIdx) ))
+        newData.fill(np.nan)
+
+        # Set the array of data
+        # This separates it so all of the data for one
+        # wavenumber is in one row, and the rest are nan
+        newData[wnIdx, range(len(data[:,3]))] = data[:,3]
+        # sum over them, ignoring the nan values
+        newVal = np.nanmean(newData, axis=1)
+        self.pScan.setData(wn, newVal)
+
+    def clearScans(self):
+        self.ui.gScan.clear()
+        self.ui.gScan.plotItem.legend.items = []
+        self.ui.gScan.addItem(self.pScan)
+
+
+    @staticmethod
+    def _____SAVING():pass
+
+    def updateSaveLoc(self):
+        fname = str(QtGui.QFileDialog.getExistingDirectory(self, "Choose File Directory...",directory=self.settings['saveLocation']))
+        print 'fname',fname
+        if fname == '':
+            return
+        self.settings['saveLocation'] = fname + '/'
+
+    def makeSaveDir(self):
+        specFold = os.path.join(self.settings["saveLocation"],
+                                 str(self.ui.tSaveName.text()))
+        if not os.path.exists(specFold):
+            try:
+                os.mkdir(specFold)
+            except Exception as e:
+                log.warning("Could not make folder for data {}. Error: {}".format(specFold, e))
+
+    def genSaveHeader(self):
+        #Return a string of header information required for processing
+        s = dict()
+        s['nir_power'] = self.settings['nir_power']
+        s['nir_lambda'] = self.settings['nir_lambda']
+        s['pm_hv'] = self.settings['pm_hv']
+        s['fel_power'] = self.settings['fel_power']
+        s['fel_lambda'] = self.settings['fel_lambda']
+        s['fel_reprate'] = self.settings['fel_reprate']
+        s['temperature'] = self.settings['temperature']
+        s['series'] = self.getSeries()
+        s["filter"] = ''
+        s["filter"] = s["filter"] + 'White ' if self.settings["filter"] & filterBFWhite else s["filter"]
+        s["filter"] = s["filter"] + 'Blue ' if self.settings["filter"] & filterBFBlue else s["filter"]
+        s["filter"] = s["filter"] + 'Triplet ' if self.settings["filter"] & filterBFTriplet else s["filter"]
+
+        aveWN = np.mean(self.settings["allData"][:,0])
+        # add the actual transmission used, useful if you want
+        # to get the actual scope voltage by multiplying by
+        # this transmission
+        T = 1
+        T = T * mrWhite(1e7/aveWN) if self.settings["filter"] & filterBFWhite else T
+        T = T * mrBlue(1e7/aveWN) if self.settings["filter"] & filterBFBlue else T
+        T = T * mrTriplet(1e7/aveWN) if self.settings["filter"] & filterBFTriplet else T
+        s["filterTrans"] = T
+        s["boxcar_pyroBackground"] = self.boxcarRegions[0].getRegion()
+        s["boxcar_pyroFP"] = self.boxcarRegions[1].getRegion()
+        s["boxcar_pyroSignal"] = self.boxcarRegions[2].getRegion()
+        s["boxcar_PMTBackground"] = self.boxcarRegions[3].getRegion()
+        s["boxcar_PMTSignal"] = self.boxcarRegions[4].getRegion()
+
+        self.settings['saveComments']
+        st = str(self.ui.tSidebandNumber.text()) + "\n"
+        st += json.dumps(s) + "\n"
+        st += self.settings['saveComments'] + "\n"
+
+
+        return  st
+
+    def saveWaveforms(self):
+        pyro = self.settings['pyData']
+        sig = self.settings['pmData']
+
+        if pyro is None: #it's empty
+            return
+
+        num = 1
+        files = glob.glob(self.settings['saveLocation'] + str(self.ui.tSaveName.text()) + '_referenceDetector*.txt')
+
+        num = str(len(files) * num) if len(files)>0 else ''
+        np.savetxt(self.settings['saveLocation'] + str(self.ui.tSaveName.text()) + '_referenceDetector' + num + '.txt',
+                   pyro, header = self.genSaveHeader()+'Voltage (V), Time(s)')
+
+
+
+        num = 1
+        files = glob.glob(self.settings['saveLocation'] + str(self.ui.tSaveName.text()) + '_signalWaveform*.txt')
+        print "found:", files
+
+        num = str(len(files) * num) if len(files)>0 else ''
+        np.savetxt(self.settings['saveLocation'] + str(self.ui.tSaveName.text()) + '_signalWaveform' + num + '.txt',
+                   sig, header = self.genSaveHeader()+'Voltage (V), Time(s)')
+        # np.savetxt(self.settings['saveLocation'] + str(self.ui.tSaveName.text()) + '_signalWaveform.txt',
+        #            sig, header = self.genSaveHeader()+'Voltage (V), Time(s)')
+
+
+
+
+    @staticmethod
+    def _____STATE_SAVING():pass
+
+    @staticmethod
+    def checkSaveFile():
+        """
+        This will check to see wheteher there's a previous settings file,
+        and if it's recent enough that it should be loaded
+        :return:
+        """
+        if not os.path.isfile('Settings.txt'):
+            # File doesn't exist
+            return False
+        if (time.time() - os.path.getmtime('Settings.txt')) > 120 * 60:
+            # It's been longer than 5 minutes and likely isn't worth
+            # keeping open
+            return False
+        try:
+            with open('Settings.txt') as fh:
+                json.load(fh)
+        except ValueError:
+            return False
+
+
+        return True
+
+    def saveSettings(self):
+        saveDict = {}
+        saveDict.update(self.settings)
+        del saveDict['pyData']
+        del saveDict['pmData']
+        del saveDict['allData']
+        del saveDict['GPIBChoices']
+        del saveDict['runningScan']
+        saveDict['saveName'] = str(self.ui.tSaveName.text())
+        saveDict['seriesName'] = str(self.ui.tSeries.text())
+
+        with open('Settings.txt', 'w') as fh:
+            json.dump(saveDict, fh, separators=(',', ': '),
+                      sort_keys=True, indent=4, default=lambda x: 'NotSerial')
+
+    def loadSettings(self):
+        with open('Settings.txt') as fh:
+            savedDict = json.load(fh)
+        if not 'aGPIB' in savedDict:
+            del savedDict['aGPIB']
+        if not 'sGPIB' in savedDict:
+            del savedDict['sGPIB']
+
+        self.settings.update(savedDict)
     def closeEvent(self, event):
+        self.saveSettings()
         print 'Close event handling'
         self.settings['collectingScope'] = False
         self.settings['runningScan'] = False
@@ -1003,11 +1218,14 @@ class SettingsDialog(QtGui.QDialog):
             self.ui.tStartWN.setEnabled(False)
             self.ui.tStepWN.setEnabled(False)
             self.ui.tEndWN.setEnabled(False)
+        # self.setWindowModality(QtCore.Qt.WindowModal)
 
     @staticmethod
     def getSettings(parent = None, settings = None):
         dialog = SettingsDialog(parent, settings)
         result = dialog.exec_()
+        # loop = QtCore.QEventLoop()
+        # dialog.buttonClicked.connect(loop.exit)
         settings['aGPIB'] = str(dialog.ui.cAGPIB.currentText())
         settings['sGPIB'] = str(dialog.ui.cSGPIB.currentText())
         settings['startWN'] = dialog.ui.tStartWN.value()
@@ -1032,6 +1250,15 @@ class SettingsDialog(QtGui.QDialog):
         settings['fel_reprate'] = dialog.ui.tRepRate.value()
         settings['temperature'] = dialog.ui.tTemp.value()
         settings['saveComments'] = str(dialog.ui.tSaveComments.toPlainText())
+
+        # print '-'*10
+        # print "Settings things"
+        # print '-'*10
+        # print result
+        # print dialog.clickedButton()
+        # print dialog.buttonRole(dialog.clickedButton())
+        # print '-'*10
+
         return (settings, result==QtGui.QDialog.Accepted)
 
     def calcAutoSB(self):

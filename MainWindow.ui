@@ -198,14 +198,65 @@
           <item>
            <layout class="QHBoxLayout" name="horizontalLayout">
             <item>
-             <widget class="QLabel" name="label">
-              <property name="text">
-               <string>Save File Name</string>
+             <widget class="QGroupBox" name="groupBox_3">
+              <property name="title">
+               <string>Series</string>
               </property>
+              <property name="flat">
+               <bool>true</bool>
+              </property>
+              <layout class="QHBoxLayout" name="horizontalLayout_7">
+               <property name="leftMargin">
+                <number>0</number>
+               </property>
+               <property name="topMargin">
+                <number>10</number>
+               </property>
+               <property name="rightMargin">
+                <number>0</number>
+               </property>
+               <property name="bottomMargin">
+                <number>0</number>
+               </property>
+               <item>
+                <widget class="QLineEdit" name="tSeries">
+                 <property name="toolTip">
+                  <string>{NIRP, NIRL, FELP, FELL, TEMP, PMHV}</string>
+                 </property>
+                 <property name="placeholderText">
+                  <string/>
+                 </property>
+                </widget>
+               </item>
+              </layout>
              </widget>
             </item>
             <item>
-             <widget class="QLineEdit" name="tSaveName"/>
+             <widget class="QGroupBox" name="groupBox_2">
+              <property name="title">
+               <string>Save Name</string>
+              </property>
+              <property name="flat">
+               <bool>true</bool>
+              </property>
+              <layout class="QHBoxLayout" name="horizontalLayout_6">
+               <property name="leftMargin">
+                <number>0</number>
+               </property>
+               <property name="topMargin">
+                <number>10</number>
+               </property>
+               <property name="rightMargin">
+                <number>0</number>
+               </property>
+               <property name="bottomMargin">
+                <number>0</number>
+               </property>
+               <item>
+                <widget class="QLineEdit" name="tSaveName"/>
+               </item>
+              </layout>
+             </widget>
             </item>
             <item>
              <widget class="QPushButton" name="bChooseDirectory">
@@ -306,9 +357,33 @@
        <attribute name="title">
         <string>Scan</string>
        </attribute>
-       <layout class="QHBoxLayout" name="horizontalLayout_4">
+       <layout class="QVBoxLayout" name="verticalLayout_3">
         <item>
-         <widget class="PlotWidget" name="gScan"/>
+         <widget class="ClickablePlotWidget" name="gScan"/>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_4">
+          <item>
+           <spacer name="horizontalSpacer_2">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QPushButton" name="bClearScan">
+            <property name="text">
+             <string>Clear</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </item>
        </layout>
       </widget>
@@ -322,7 +397,7 @@
      <x>0</x>
      <y>0</y>
      <width>823</width>
-     <height>22</height>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -379,6 +454,11 @@
    <extends>QGraphicsView</extends>
    <header>pyqtgraph</header>
   </customwidget>
+  <customwidget>
+   <class>ClickablePlotWidget</class>
+   <extends>QGraphicsView</extends>
+   <header>clickablePlotWidget</header>
+  </customwidget>
  </customwidgets>
  <tabstops>
   <tabstop>tPyBgSt</tabstop>
@@ -391,7 +471,6 @@
   <tabstop>tPmBgEn</tabstop>
   <tabstop>tPmSgSt</tabstop>
   <tabstop>tPmSgEn</tabstop>
-  <tabstop>tSaveName</tabstop>
   <tabstop>bChooseDirectory</tabstop>
   <tabstop>bPause</tabstop>
   <tabstop>bQuickStart</tabstop>
