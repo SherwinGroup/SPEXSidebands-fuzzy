@@ -134,6 +134,7 @@ class MainWin(QtGui.QMainWindow):
         self.openSPEX()
         self.openAgi()
         self.SPEXWindow = None
+        self.pulseWidth = 2e-6
         
     def initUI(self):
         self.ui = Ui_MainWindow()
@@ -806,7 +807,7 @@ class MainWin(QtGui.QMainWindow):
         # (width of the cavity dump)
         if sendidx == 4:
             a = list(sender.getRegion())
-            a[1] = a[0]+40e-9
+            a[1] = a[0]+self.pulseWidth
             sender.setRegion(a)
         d = {0: "bcpyBG",
              1: "bcpyFP",
@@ -832,7 +833,7 @@ class MainWin(QtGui.QMainWindow):
         if i==4:
             self.linearRegionTextBoxes[i][1-j].blockSignals(True)
             self.linearRegionTextBoxes[i][1-j].setText(str(
-                float(sender.text()) + (-1)**(j) * 40e-9)
+                float(sender.text()) + (-1)**(j) * self.pulseWidth)
             )
             self.linearRegionTextBoxes[i][1-j].blockSignals(False)
             # sender.setText(str(
