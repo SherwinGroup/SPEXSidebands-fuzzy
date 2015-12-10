@@ -279,8 +279,11 @@ class MainWin(QtGui.QMainWindow):
         s['pmData'] = None
         #wavenumber, ref FP, ref CD, signal
         s['allData'] = np.empty((0,4))
+        s["allSignalWaveforms"] = np.empty((10000, 0))
+        s["allReferenceWaveforms"] = np.empty((10000, 0))
+
         s['currentWN'] = 0
-        s["currentScan"] = dict() # for keeping track of the current data
+        s["saveWaveforms"] = False
         
         #boundaries for boxcar integration
         #bc[py|pm] -> boxcar[Pyro|PMT]
@@ -534,16 +537,19 @@ class MainWin(QtGui.QMainWindow):
             self.settings['stepWN'] = -1
             self.settings['endWN'] = 13130
             self.settings['ave'] = 3
-        elif self.settings['stepWN'] == 0:
+        elif self.settings['startWN']*self.settings['endWN'] == 0:
             self.statusSig.emit(['Please initialize scan settings', 10000])
             MessageDialog(self, "Please initialize scan settings.", 3000)
             return
         self.saveSettings()
 
+        if self.settings["saveWaveforms"]:
+            self.settings["allSignalWaveforms"] = np.empty((0, 0))
+            self.settings["allReferenceWaveforms"] = np.empty((0, 0))
+        else:
+            #wavenumber, ref FP, ref CD, signal
+            self.settings['allData'] = np.empty((0,4))
 
-        #wavenumber, ref FP, ref CD, signal
-        self.settings['allData'] = np.empty((0,4))
-        self.settings['currentScan'] = dict()
         self.updateScan() # clear the graph
         self.settings['runningScan'] = True
         self.ui.bStart.setEnabled(False)
@@ -581,9 +587,12 @@ class MainWin(QtGui.QMainWindow):
         self.quickStartScan()
 
     def runScanLoop(self):
-        WNRange = np.arange(self.settings['startWN'],
-                                self.settings['endWN'], self.settings['stepWN'])
-        WNRange = np.append(WNRange, self.settings['endWN'])
+        if self.settings["stepWN"] == 0 or self.settings["saveWaveforms"]:
+            WNRange = np.array([self.settings['endWN']])
+        else:
+            WNRange = np.arange(self.settings['startWN'],
+                                    self.settings['endWN'], self.settings['stepWN'])
+            WNRange = np.append(WNRange, self.settings['endWN'])
 
         for wavenumber in WNRange:
             if not self.settings['runningScan']:
@@ -603,8 +612,8 @@ class MainWin(QtGui.QMainWindow):
                 if not self.settings['runningScan']:
                     print 'breaking scan'
                     break
-            # Now want to take data. This means we need to wait for the oscilloscope to
-            # finish collecting its current round. Enter a waiting loop.
+                # Now want to take data. This means we need to wait for the oscilloscope to
+                # finish collecting its current round. Enter a waiting loop.
                 # Note: the event loop has to be instantiated here. I'm not sure why,
                 # probably a main thread/worker thread/mutexing bullshit reason.
                 self.waitingForDataLoop = QtCore.QEventLoop()
@@ -624,7 +633,6 @@ class MainWin(QtGui.QMainWindow):
                     mult = 1
                     # print "Not 700 V setting, {}, mult = {}".format(self.settings['pm_hv'], mult)
 
-                mult = 10 if self.settings['pm_hv']==700 else 1
                 sig *= mult # to account for the difference between 700 V and 1kV
 
                 # also account for the attenuation due to the filters
@@ -645,9 +653,28 @@ class MainWin(QtGui.QMainWindow):
                     isValid = True
                 if isValid:
                     num += 1
-                    self.settings['allData'] = np.append(
-                        self.settings['allData'], [[wavenumber, refFP, refCD, sig]],
-                        axis=0)
+                    if self.settings["saveWaveforms"]:
+                        pyD = self.settings['pyData']
+                        pmD = self.settings['pmData']
+
+                        oldpyD = self.settings['allReferenceWaveforms']
+                        oldpmD = self.settings['allSignalWaveforms']
+
+                        if pyD.shape[0] != oldpyD.shape[0]:
+                            # This is the first one, grab the time
+                            oldpyD = pyD.copy()
+                            oldpmD = pmD.copy()
+                        else:
+                            oldpyD = np.column_stack((oldpyD, pyD.copy()))
+                            oldpmD = np.column_stack((oldpmD, pmD.copy()))
+
+                        self.settings['allReferenceWaveforms'] = oldpyD
+                        self.settings['allSignalWaveforms'] = oldpmD
+
+                    else:
+                        self.settings['allData'] = np.append(
+                            self.settings['allData'], [[wavenumber, refFP, refCD, sig]],
+                            axis=0)
                     self.sigNewStep.emit()
                     self.statusSig.emit(['Wavenumber: {}/{}. No. {}/{}'.format(
                         wavenumber, WNRange[-1], num, self.settings['ave']), 0])
@@ -671,10 +698,34 @@ class MainWin(QtGui.QMainWindow):
                                        , filename + '*.txt'))
         num = len(files)
 
+        if self.settings["saveWaveforms"]:
+            data = self.settings['allSignalWaveforms']
+            time = data[:,0]*1e3
+            sigData = data[:,1:].mean(axis=1)*1e3
+            sigErr = data[:,1:].std(axis=1)/np.sqrt(data.shape[1]-1)*1e3
+            data = self.settings['allReferenceWaveforms']
+            refData = data[:,1:].mean(axis=1)*1e3
+            refErr = data[:,1:].std(axis=1)/np.sqrt(data.shape[1]-1)*1e3
+
+            saveData = np.column_stack((time, sigData,sigErr, refData, refErr))
+
+
+            originheader = 'Time,PMT Signal,PMT MeanErr,Ref Signal,Ref MeanErr\n'
+            originheader += 'ms,mV,mV,mV,mV'
+            fmt = '%.10e'
+
+        else:
+            saveData = self.settings["allData"]
+            originheader = 'Wavenumber, Integrated front porch, Integrated Cavity dump, integrated signal\n'
+            originheader += 'cm-1, arb.u., arb.u., arb.u.'
+            fmt = '%.18e'
         np.savetxt(os.path.join(
             self.settings['saveLocation'],str(self.ui.tSaveName.text()),'{}{}.txt'.format(filename, num)),
-                   self.settings['allData'],
-                   header = self.genSaveHeader() +  'Wavenumber, Integrated front porch, Integrated Cavity dump, integrated signal')
+            saveData,
+            header = '#'+self.genSaveHeader().replace('\n', '\n#') +  '\n'+originheader,
+            comments='',
+            delimiter=',',
+            fmt = fmt)
 
         #clean up after done
         self.sigScanFinished.emit()
@@ -685,36 +736,35 @@ class MainWin(QtGui.QMainWindow):
         self.ui.bStart.setEnabled(True)
         self.ui.bQuickStart.setEnabled(True)
 
-        # Plot the new data as an independent line
+        if not self.settings["saveWaveforms"]:
+            # Plot the new data as an independent line
+            data = self.settings["allData"]
+            # Find duplicates. wnIdx is a list such that
+            # d[i, 0] = wn[wnIdx[i]]
+            wn, wnIdx = np.unique(data[:,0], return_inverse=True)
+            # make a nan array for easy summing
+            newData = np.empty((len(wn), len(wnIdx) ))
+            newData.fill(np.nan)
 
-        data = self.settings["allData"]
-        # Find duplicates. wnIdx is a list such that
-        # d[i, 0] = wn[wnIdx[i]]
-        wn, wnIdx = np.unique(data[:,0], return_inverse=True)
-        # make a nan array for easy summing
-        newData = np.empty((len(wn), len(wnIdx) ))
-        newData.fill(np.nan)
-
-        # Set the array of data
-        # This separates it so all of the data for one
-        # wavenumber is in one row, and the rest are nan
-        newData[wnIdx, range(len(data[:,3]))] = data[:,3]
-        # sum over them, ignoring the nan values
-        newVal = np.nanmean(newData, axis=1)
-        errs = np.nanstd(newData, axis=1)/np.sqrt(
-            np.sum(1-np.isnan(newData), axis=1)
-        )
-        label = self.getSeries() + '_' + str(self.ui.tSidebandNumber.text())
-        col = plotColors.next()
-        # err = pg.ErrorBarItem(
-        #     x=wn,
-        #     y = newVal,
-        #     height=2*errs,
-        #     pen = col
-        # )
-        #
-        # self.ui.gScan.plot(wn, newVal, name=label, pen = col)
-        self.ui.gScan.errorbars(x=wn, y=newVal, errorbars=errs, pen=col, name=label)
+            # Set the array of data
+            # This separates it so all of the data for one
+            # wavenumber is in one row, and the rest are nan
+            newData[wnIdx, range(len(data[:,3]))] = data[:,3]
+            # sum over them, ignoring the nan values
+            newVal = np.nanmean(newData, axis=1)
+            errs = np.nanstd(newData, axis=1)/np.sqrt(
+                np.sum(1-np.isnan(newData), axis=1)
+            )
+            label = self.getSeries() + '_' + str(self.ui.tSidebandNumber.text())
+            col = plotColors.next()
+            self.ui.gScan.errorbars(x=wn, y=newVal, errorbars=errs, pen=col, name=label)
+        else:
+            data = self.settings['allSignalWaveforms']
+            time = data[:,0]
+            data = data[:, 1:].mean(axis=1)
+            label = self.getSeries() + '_' + str(self.ui.tSidebandNumber.text())
+            col = plotColors.next()
+            self.ui.gScan.plot(x=time, y=data, name=label, pen=col)
         self.statusSig.emit(['Done', 3000])
 
     def collectScopeLoop(self):
@@ -868,20 +918,33 @@ class MainWin(QtGui.QMainWindow):
         self.pPMT.setData(data[:,0], data[:,1])
 
     def updateScan(self):
-        data = self.settings["allData"]
-        # Find duplicates. wnIdx is a list such that
-        # d[i, 0] = wn[wnIdx[i]]
-        wn, wnIdx = np.unique(data[:,0], return_inverse=True)
-        # make a nan array for easy summing
-        newData = np.empty((len(wn), len(wnIdx) ))
-        newData.fill(np.nan)
+        """
 
-        # Set the array of data
-        # This separates it so all of the data for one
-        # wavenumber is in one row, and the rest are nan
-        newData[wnIdx, range(len(data[:,3]))] = data[:,3]
-        # sum over them, ignoring the nan values
-        newVal = np.nanmean(newData, axis=1)
+        """
+        # if wn is None or newVal is None:
+        if not self.settings["saveWaveforms"]:
+            data = self.settings["allData"]
+            # Find duplicates. wnIdx is a list such that
+            # d[i, 0] = wn[wnIdx[i]]
+            wn, wnIdx = np.unique(data[:,0], return_inverse=True)
+            # make a nan array for easy summing
+            newData = np.empty((len(wn), len(wnIdx) ))
+            newData.fill(np.nan)
+
+            # Set the array of data
+            # This separates it so all of the data for one
+            # wavenumber is in one row, and the rest are nan
+            newData[wnIdx, range(len(data[:,3]))] = data[:,3]
+            # sum over them, ignoring the nan values
+            newVal = np.nanmean(newData, axis=1)
+        else:
+            data = self.settings['allSignalWaveforms']
+            if 0 in data.shape:
+                wn = []
+                newVal = []
+            else:
+                wn = data[:,0]
+                newVal = data[:,1:].mean(axis=1)
         self.pScan.setData(wn, newVal)
 
     def clearScans(self):
@@ -895,7 +958,6 @@ class MainWin(QtGui.QMainWindow):
 
     def updateSaveLoc(self):
         fname = str(QtGui.QFileDialog.getExistingDirectory(self, "Choose File Directory...",directory=self.settings['saveLocation']))
-        print 'fname',fname
         if fname == '':
             return
         self.settings['saveLocation'] = fname + '/'
@@ -943,12 +1005,15 @@ class MainWin(QtGui.QMainWindow):
         self.settings['saveComments']
         st = str(self.ui.tSidebandNumber.text()) + "\n"
         st += json.dumps(s) + "\n"
-        st += self.settings['saveComments'] + "\n"
-
-
+        st += self.settings['saveComments']
         return  st
 
     def saveWaveforms(self):
+        """
+        This saves the waveforms which are immediately on the
+        screen when the 'Save Waveforms' button is selected
+        :return:
+        """
         pyro = self.settings['pyData']
         sig = self.settings['pmData']
 
@@ -974,7 +1039,14 @@ class MainWin(QtGui.QMainWindow):
         # np.savetxt(self.settings['saveLocation'] + str(self.ui.tSaveName.text()) + '_signalWaveform.txt',
         #            sig, header = self.genSaveHeader()+'Voltage (V), Time(s)')
 
-
+    def saveScanWaveforms(self):
+        """
+        This function gets called when the user has selected
+        to save the averaged waveforms, instead of the
+        boxcar values.
+        :return:
+        """
+        pass
 
 
     @staticmethod
@@ -1006,11 +1078,18 @@ class MainWin(QtGui.QMainWindow):
     def saveSettings(self):
         saveDict = {}
         saveDict.update(self.settings)
-        del saveDict['pyData']
-        del saveDict['pmData']
-        del saveDict['allData']
-        del saveDict['GPIBChoices']
-        del saveDict['runningScan']
+        badkeys=['pyData',
+                'pmData',
+                'allData',
+                'GPIBChoices',
+                'runningScan',
+                'allSignalWaveforms',
+                 'allReferenceWaveforms']
+        for k in badkeys:
+            try:
+                del saveDict[k]
+            except KeyError:
+                pass
         saveDict['saveName'] = str(self.ui.tSaveName.text())
         saveDict['seriesName'] = str(self.ui.tSeries.text())
 
@@ -1027,6 +1106,7 @@ class MainWin(QtGui.QMainWindow):
             del savedDict['sGPIB']
 
         self.settings.update(savedDict)
+
     def closeEvent(self, event):
         self.saveSettings()
         print 'Close event handling'
@@ -1212,6 +1292,8 @@ class SettingsDialog(QtGui.QDialog):
         self.ui.tRepRate.setText(str(settings['fel_reprate']))
         self.ui.tTemp.setText(str(settings['temperature']))
         self.ui.tSaveComments.setText(settings['saveComments'])
+
+        self.ui.cbSaveWaveforms.setChecked(settings["saveWaveforms"])
         
         if settings['runningScan']:
             self.ui.tAverages.setEnabled(False)
@@ -1250,6 +1332,7 @@ class SettingsDialog(QtGui.QDialog):
         settings['fel_reprate'] = dialog.ui.tRepRate.value()
         settings['temperature'] = dialog.ui.tTemp.value()
         settings['saveComments'] = str(dialog.ui.tSaveComments.toPlainText())
+        settings["saveWaveforms"] = bool(dialog.ui.cbSaveWaveforms.isChecked())
 
         # print '-'*10
         # print "Settings things"
