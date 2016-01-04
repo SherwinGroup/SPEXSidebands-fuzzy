@@ -606,6 +606,7 @@ class MainWin(QtGui.QMainWindow):
             num = 0 # number of averages. Doing it this way so that if we want to implement
                     # something where we don't count a number, then we can decline decrementing
                     # effectively saying the point didn't happen
+            missed = 0
             self.settings['collectingData'] = True
             while num < self.settings['ave']:
 
@@ -644,7 +645,7 @@ class MainWin(QtGui.QMainWindow):
 
                 self.boxcarSig.emit(refFP, refCD, sig)
                 isValid = True #Flag for telling whether to keep the data or not
-                if refCD < 5.*refBG:
+                if np.abs(refCD) < 5.*np.abs(refBG):
                     # misfire if the CD isn't 5x the background
                     isValid = False
                 if str(self.ui.tSidebandNumber.text()) == '0':
@@ -656,6 +657,8 @@ class MainWin(QtGui.QMainWindow):
                     if self.settings["saveWaveforms"]:
                         pyD = self.settings['pyData']
                         pmD = self.settings['pmData']
+                        # print "Current data set average:", pmD.mean(), pmD.shape
+
 
                         oldpyD = self.settings['allReferenceWaveforms']
                         oldpmD = self.settings['allSignalWaveforms']
@@ -665,9 +668,11 @@ class MainWin(QtGui.QMainWindow):
                             oldpyD = pyD.copy()
                             oldpmD = pmD.copy()
                         else:
-                            oldpyD = np.column_stack((oldpyD, pyD.copy()))
-                            oldpmD = np.column_stack((oldpmD, pmD.copy()))
+                            oldpyD = np.column_stack((oldpyD, pyD.copy()[:,1]))
+                            oldpmD = np.column_stack((oldpmD, pmD.copy()[:,1]))
 
+                        # print "new data set averages", oldpmD.mean(axis=0)
+                        # print "newData shape:", oldpmD.shape
                         self.settings['allReferenceWaveforms'] = oldpyD
                         self.settings['allSignalWaveforms'] = oldpmD
 
@@ -675,9 +680,11 @@ class MainWin(QtGui.QMainWindow):
                         self.settings['allData'] = np.append(
                             self.settings['allData'], [[wavenumber, refFP, refCD, sig]],
                             axis=0)
-                    self.sigNewStep.emit()
-                    self.statusSig.emit(['Wavenumber: {}/{}. No. {}/{}'.format(
-                        wavenumber, WNRange[-1], num, self.settings['ave']), 0])
+                else:
+                    missed += 1
+                self.sigNewStep.emit()
+                self.statusSig.emit(['Wavenumber: {}/{}. No. {}({})/{}'.format(
+                    wavenumber, WNRange[-1], num, missed, self.settings['ave']), 0])
 
         filename = str(self.ui.tSaveName.text())
 
