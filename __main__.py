@@ -12,6 +12,7 @@ import threading
 import json
 import glob
 import time
+import datetime
 import copy
 try:
     from InstsAndQt.Instruments import SPEX, Agilent6000
@@ -718,7 +719,8 @@ class MainWin(QtGui.QMainWindow):
 
 
             originheader = 'Time,PMT Signal,PMT MeanErr,Ref Signal,Ref MeanErr\n'
-            originheader += 'ms,mV,mV,mV,mV'
+            originheader += 'ms,mV,mV,mV,mV\n'
+            originheader += 't,{} PMT,,{} Ref,'.format(self.getSeries(), self.getSeries())
             fmt = '%.10e'
 
         else:
@@ -1008,10 +1010,15 @@ class MainWin(QtGui.QMainWindow):
         s["boxcar_pyroSignal"] = self.boxcarRegions[2].getRegion()
         s["boxcar_PMTBackground"] = self.boxcarRegions[3].getRegion()
         s["boxcar_PMTSignal"] = self.boxcarRegions[4].getRegion()
+        s["date"] = time.strftime('%x')
+
+        if self.settings["saveWaveforms"]:
+            s["NIRFreq"] = self.settings['endWN']
+            s["numAve"] = self.settings['ave']
 
         self.settings['saveComments']
         st = str(self.ui.tSidebandNumber.text()) + "\n"
-        st += json.dumps(s) + "\n"
+        st += json.dumps(s, sort_keys=True) + "\n"
         st += self.settings['saveComments']
         return  st
 
