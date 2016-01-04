@@ -301,7 +301,7 @@
      <item>
       <widget class="QFNumberEdit" name="tRepRate">
        <property name="text">
-        <string>0.75</string>
+        <string>1.07</string>
        </property>
       </widget>
      </item>
@@ -364,6 +364,13 @@
       <widget class="QTextEdit" name="tSaveComments"/>
      </item>
     </layout>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="cbSaveWaveforms">
+     <property name="text">
+      <string>Save waveforms instead of boxcars</string>
+     </property>
+    </widget>
    </item>
    <item>
     <widget class="QDialogButtonBox" name="buttonBox">

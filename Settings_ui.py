@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'C:\Users\dvalovcin\Documents\GitHub\SPEXSidebands-fuzzy\Settings.ui'
 #
-# Created: Tue Oct 20 13:58:25 2015
+# Created: Wed Dec 09 15:19:41 2015
 #      by: PyQt4 UI code generator 4.10.4
 #
 # WARNING! All changes made in this file will be lost!
@@ -197,6 +197,9 @@ class Ui_Settings(object):
         self.tSaveComments.setObjectName(_fromUtf8("tSaveComments"))
         self.horizontalLayout_10.addWidget(self.tSaveComments)
         self.verticalLayout_2.addLayout(self.horizontalLayout_10)
+        self.cbSaveWaveforms = QtGui.QCheckBox(Settings)
+        self.cbSaveWaveforms.setObjectName(_fromUtf8("cbSaveWaveforms"))
+        self.verticalLayout_2.addWidget(self.cbSaveWaveforms)
         self.buttonBox = QtGui.QDialogButtonBox(Settings)
         self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
         self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Cancel|QtGui.QDialogButtonBox.Ok)
@@ -237,9 +240,10 @@ class Ui_Settings(object):
         self.label_15.setText(_translate("Settings", "FEL  (cm-1)", None))
         self.tFELLam.setText(_translate("Settings", "0", None))
         self.label_16.setText(_translate("Settings", "Rep Rate(Hz)", None))
-        self.tRepRate.setText(_translate("Settings", "0.75", None))
+        self.tRepRate.setText(_translate("Settings", "1.07", None))
         self.label_14.setText(_translate("Settings", "Temperature", None))
         self.tTemp.setText(_translate("Settings", "0", None))
         self.label_11.setText(_translate("Settings", "Save Comments:", None))
+        self.cbSaveWaveforms.setText(_translate("Settings", "Save waveforms instead of boxcars", None))
 
 from InstsAndQt.customQt import QINumberEdit, QFNumberEdit
