@@ -733,8 +733,6 @@ class MainWin(QtGui.QMainWindow):
                         pmD = self.settings['pmData']
                         if self.settings["doPC"]:
                             pmD = getPhotonCountedWaveform(pmD, self.ui.linePCThreshold.value())
-                            print pmD.shape
-
 
                         oldpyD = self.settings['allReferenceWaveforms']
                         oldpmD = self.settings['allSignalWaveforms']
@@ -801,7 +799,6 @@ class MainWin(QtGui.QMainWindow):
                 originheader += 'ms,photons,,mV,mV\n'
             else:
                 originheader += 'ms,mV,mV,mV,mV\n'
-            originheader += 'ms,mV,mV,mV,mV\n'
             originheader += 't,{} PMT,,{} Ref,'.format(self.getSeries(), self.getSeries())
             fmt = '%.10e'
 
@@ -1093,7 +1090,7 @@ class MainWin(QtGui.QMainWindow):
         s["filter"] = s["filter"] + 'Blue ' if self.settings["filter"] & filterBFBlue else s["filter"]
         s["filter"] = s["filter"] + 'Triplet ' if self.settings["filter"] & filterBFTriplet else s["filter"]
 
-        aveWN = np.mean(self.settings["allData"][:,0])
+        aveWN = np.mean(self.settings['endWN']) # assume
         # add the actual transmission used, useful if you want
         # to get the actual scope voltage by multiplying by
         # this transmission
@@ -1110,8 +1107,10 @@ class MainWin(QtGui.QMainWindow):
         s["date"] = time.strftime('%x')
 
         if self.settings["saveWaveforms"]:
-            s["NIRFreq"] = self.settings['endWN']
+            s["SPEXFreq"] = self.settings['endWN']
             s["numAve"] = self.settings['ave']
+            if self.settings["doPC"]:
+                s["PCThreshold"] = self.ui.tPCThreshold.value()
 
         self.settings['saveComments']
         st = str(self.ui.tSidebandNumber.text()) + "\n"
