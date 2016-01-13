@@ -12,6 +12,7 @@ import threading
 import json
 import glob
 import time
+import datetime
 import copy
 try:
     from InstsAndQt.Instruments import SPEX, Agilent6000
@@ -87,6 +88,53 @@ import itertools
 plotColors = itertools.cycle(plotColors)
 
 
+def group_data(data, deadtime = 8):
+    """
+    Given a list of numbers, group them up based on where
+    they're continuous.
+    i.e. into sets of [[n, n+1, n+2], [m, m+1, m+1+cutoff]]
+
+    Use by passing in a set of indexes which come from
+    np.where(cond)[0]
+
+    :param deadtime: How large a gap to still be considered
+     "continuous"
+    """
+    groupedData = []
+    curData = []
+    for d in list(data):
+        if curData:
+            if np.abs(d-curData[-1])>deadtime:
+                groupedData.append(curData)
+                curData = [d]
+            else:
+                curData.append(d)
+        else:
+            curData.append(d)
+    groupedData.append(curData)
+    return groupedData
+
+def getPhotonCountedWaveform(wf, cutoff=20):
+    """
+    :type wf: np.ndarray
+    """
+    wfOrig = wf.copy()
+    time = wfOrig[:,0]
+    wf = wfOrig[:,1]
+    photons = np.zeros_like(wf)
+
+    flg = (wf>cutoff).astype(int)
+    if np.any(flg): #empty
+        pkGroups = group_data(np.where(flg)[0])
+
+        peaks = []
+        for gp in pkGroups:
+            pkPos = gp[0] + np.argmax(wf[gp])
+            peaks.append(pkPos)
+        photons[peaks] = 1
+    wfOrig[:,1] = photons
+
+    return wfOrig
 
 class MainWin(QtGui.QMainWindow):
     #emits when oscilloscope is done taking data so that
@@ -159,7 +207,25 @@ class MainWin(QtGui.QMainWindow):
         plotitem.setLabel('top',text='PMT')
         plotitem.setLabel('left',text='Integrated Voltage',units='V')
         plotitem.setLabel('bottom',text='Wavenumber')
-        
+
+
+
+        self.ui.linePCThreshold = pg.InfiniteLine(pos=self.settings['PCThreshold'], angle=0, movable=True)
+        self.ui.gPC.p2.addItem(self.ui.linePCThreshold)
+        self.ui.gPC.setXLabel("Time", units='s')
+        self.ui.gPC.setY1Label("Photons")
+        self.ui.gPC.setY2Label("PMT", units='V')
+
+        self.ui.tPCThreshold.setText(str(self.settings['PCThreshold']))
+        self.ui.linePCThreshold.sigPositionChanged.connect(self.updatePCThreshFromVal)
+        self.ui.tPCThreshold.textAccepted.connect(self.updatePCThresFromText)
+
+        if self.settings["doPC"]:
+            pass
+        else:
+            self.ui.tabWidget.removeTab(1)
+
+
         self.initLinearRegionBounds()
         #Now we make an array of all the textboxes for the linear regions to make it
         #easier to iterate through them. Set it up in memory identical to how it
@@ -284,6 +350,8 @@ class MainWin(QtGui.QMainWindow):
 
         s['currentWN'] = 0
         s["saveWaveforms"] = False
+        s["doPC"] = False
+        s["PCThreshold"] = 0
         
         #boundaries for boxcar integration
         #bc[py|pm] -> boxcar[Pyro|PMT]
@@ -330,8 +398,6 @@ class MainWin(QtGui.QMainWindow):
         if not self.settings["autoSBN"] == newSettings["autoSBN"]:
             self.ui.tSidebandNumber.setText(str(newSettings["autoSBN"]))
 
-
-        
         #Need to check to see if the GPIB values changed so we can update them.
         #The opening procedure opens a fake isntrument if things go wrong, which 
         #means we can't assign the settings dict after calling openKeith() as that would
@@ -341,6 +407,13 @@ class MainWin(QtGui.QMainWindow):
         
         oldaGPIB = self.settings['aGPIB']
         oldsGPIB = self.settings['sGPIB']
+
+        if self.settings["doPC"] and not newSettings["doPC"]:
+            # No longer wanted
+            self.ui.tabWidget.removeTab(1)
+        elif not self.settings["doPC"] and newSettings["doPC"]:
+            # Now wanted
+            self.ui.tabWidget.insertTab(1, self.ui.tabPC, "Photon Counting")
 
         self.settings.update(newSettings)
         log.debug("Old Agi GPIB: {}. New Agi GPIB: {}".format(oldaGPIB, newSettings['aGPIB']))
@@ -353,6 +426,7 @@ class MainWin(QtGui.QMainWindow):
             self.SPEX.close()
             self.settings['sGPIB'] = newSettings['sGPIB']
             self.openSPEX()
+
         
         #enforce the correct sign
         self.settings['stepWN'] = np.sign(self.settings['endWN']-self.settings['startWN'])*np.abs(
@@ -657,8 +731,8 @@ class MainWin(QtGui.QMainWindow):
                     if self.settings["saveWaveforms"]:
                         pyD = self.settings['pyData']
                         pmD = self.settings['pmData']
-                        # print "Current data set average:", pmD.mean(), pmD.shape
-
+                        if self.settings["doPC"]:
+                            pmD = getPhotonCountedWaveform(pmD, self.ui.linePCThreshold.value())
 
                         oldpyD = self.settings['allReferenceWaveforms']
                         oldpmD = self.settings['allSignalWaveforms']
@@ -708,7 +782,10 @@ class MainWin(QtGui.QMainWindow):
         if self.settings["saveWaveforms"]:
             data = self.settings['allSignalWaveforms']
             time = data[:,0]*1e3
-            sigData = data[:,1:].mean(axis=1)*1e3
+            if self.settings["doPC"]:
+                sigData = data[:,1:].sum(axis=1)
+            else:
+                sigData = data[:,1:].mean(axis=1)*1e3
             sigErr = data[:,1:].std(axis=1)/np.sqrt(data.shape[1]-1)*1e3
             data = self.settings['allReferenceWaveforms']
             refData = data[:,1:].mean(axis=1)*1e3
@@ -718,7 +795,11 @@ class MainWin(QtGui.QMainWindow):
 
 
             originheader = 'Time,PMT Signal,PMT MeanErr,Ref Signal,Ref MeanErr\n'
-            originheader += 'ms,mV,mV,mV,mV'
+            if self.settings["doPC"]:
+                originheader += 'ms,photons,,mV,mV\n'
+            else:
+                originheader += 'ms,mV,mV,mV,mV\n'
+            originheader += 't,{} PMT,,{} Ref,'.format(self.getSeries(), self.getSeries())
             fmt = '%.10e'
 
         else:
@@ -912,9 +993,18 @@ class MainWin(QtGui.QMainWindow):
              4: "bcpmSB"
         }
         self.settings[d[i]] = list(curVals)
-
-
         self.saveSettings()
+
+
+    def updatePCThreshFromVal(self, lin):
+        self.ui.tPCThreshold.blockSignals(True)
+        self.ui.tPCThreshold.setText("{}".format(lin.value()))
+        self.ui.tPCThreshold.blockSignals(False)
+
+    def updatePCThresFromText(self, val):
+        self.ui.linePCThreshold.blockSignals(True)
+        self.ui.linePCThreshold.setPos(val)
+        self.ui.linePCThreshold.blockSignals(False)
 
     def updatePyroGraph(self, data):
         self.settings['pyData'] = data
@@ -923,6 +1013,8 @@ class MainWin(QtGui.QMainWindow):
     def updatePMTGraph(self, data):
         self.settings['pmData'] = data
         self.pPMT.setData(data[:,0], data[:,1])
+        if self.settings["doPC"]:
+            self.ui.gPC.setY2Data(data)
 
     def updateScan(self):
         """
@@ -946,12 +1038,16 @@ class MainWin(QtGui.QMainWindow):
             newVal = np.nanmean(newData, axis=1)
         else:
             data = self.settings['allSignalWaveforms']
+            # nothing collected yet
             if 0 in data.shape:
                 wn = []
                 newVal = []
             else:
                 wn = data[:,0]
                 newVal = data[:,1:].mean(axis=1)
+                if self.settings["doPC"]:
+                    self.ui.gPC.setY2Data(self.settings['pmData'])
+                    self.ui.gPC.setY1Data(wn, data[:,1:].sum(axis=1))
         self.pScan.setData(wn, newVal)
 
     def clearScans(self):
@@ -994,7 +1090,7 @@ class MainWin(QtGui.QMainWindow):
         s["filter"] = s["filter"] + 'Blue ' if self.settings["filter"] & filterBFBlue else s["filter"]
         s["filter"] = s["filter"] + 'Triplet ' if self.settings["filter"] & filterBFTriplet else s["filter"]
 
-        aveWN = np.mean(self.settings["allData"][:,0])
+        aveWN = np.mean(self.settings['endWN']) # assume
         # add the actual transmission used, useful if you want
         # to get the actual scope voltage by multiplying by
         # this transmission
@@ -1008,10 +1104,17 @@ class MainWin(QtGui.QMainWindow):
         s["boxcar_pyroSignal"] = self.boxcarRegions[2].getRegion()
         s["boxcar_PMTBackground"] = self.boxcarRegions[3].getRegion()
         s["boxcar_PMTSignal"] = self.boxcarRegions[4].getRegion()
+        s["date"] = time.strftime('%x')
+
+        if self.settings["saveWaveforms"]:
+            s["SPEXFreq"] = self.settings['endWN']
+            s["numAve"] = self.settings['ave']
+            if self.settings["doPC"]:
+                s["PCThreshold"] = self.ui.tPCThreshold.value()
 
         self.settings['saveComments']
         st = str(self.ui.tSidebandNumber.text()) + "\n"
-        st += json.dumps(s) + "\n"
+        st += json.dumps(s, sort_keys=True) + "\n"
         st += self.settings['saveComments']
         return  st
 
@@ -1099,6 +1202,7 @@ class MainWin(QtGui.QMainWindow):
                 pass
         saveDict['saveName'] = str(self.ui.tSaveName.text())
         saveDict['seriesName'] = str(self.ui.tSeries.text())
+        saveDict['PCThreshold'] = self.ui.tPCThreshold.value()
 
         with open('Settings.txt', 'w') as fh:
             json.dump(saveDict, fh, separators=(',', ': '),
@@ -1246,6 +1350,7 @@ class SettingsDialog(QtGui.QDialog):
             self.ui.tGotoSB
         ]
         [i.textAccepted.connect(self.calcAutoSB) for i in self.calcSBBoxes]
+        self.ui.cbSaveWaveforms.toggled.connect(self.togglePC)
         self.calcSBBoxes.pop(self.calcSBBoxes.index(self.ui.tGotoSB))
         # Want this to be connected to something else so
         # you can parse a nm input
@@ -1301,6 +1406,9 @@ class SettingsDialog(QtGui.QDialog):
         self.ui.tSaveComments.setText(settings['saveComments'])
 
         self.ui.cbSaveWaveforms.setChecked(settings["saveWaveforms"])
+        self.ui.cbPC.setEnabled(settings["saveWaveforms"])
+        self.ui.cbPC.setChecked(settings["doPC"])
+
         
         if settings['runningScan']:
             self.ui.tAverages.setEnabled(False)
@@ -1340,6 +1448,8 @@ class SettingsDialog(QtGui.QDialog):
         settings['temperature'] = dialog.ui.tTemp.value()
         settings['saveComments'] = str(dialog.ui.tSaveComments.toPlainText())
         settings["saveWaveforms"] = bool(dialog.ui.cbSaveWaveforms.isChecked())
+        settings["doPC"] = bool(dialog.ui.cbPC.isChecked())
+
 
         # print '-'*10
         # print "Settings things"
@@ -1362,11 +1472,15 @@ class SettingsDialog(QtGui.QDialog):
         # self.ui.tStepWN.setText("-1")
         self.ui.tEndWN.setText(str(int(sbWN - bound)))
 
-
     def calcNIRLam(self, val):
         if val<10000:
             self.ui.tNIRLam.setText("{:.1f}".format(10000000/val))
         self.calcAutoSB()
+
+    def togglePC(self, enabled):
+        self.ui.cbPC.setEnabled(enabled)
+        if not enabled:
+            self.ui.cbPC.setChecked(enabled)
 
 class MessageDialog(QtGui.QDialog):
     def __init__(self, parent, message="", duration=3000):

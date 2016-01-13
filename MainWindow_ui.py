@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'C:\Users\dvalovcin\Documents\GitHub\SPEXSidebands-fuzzy\MainWindow.ui'
 #
-# Created: Wed Nov 25 13:04:53 2015
+# Created: Mon Jan 04 15:42:30 2016
 #      by: PyQt4 UI code generator 4.10.4
 #
 # WARNING! All changes made in this file will be lost!
@@ -35,17 +35,18 @@ class Ui_MainWindow(object):
         self.tabWidget.setObjectName(_fromUtf8("tabWidget"))
         self.tab = QtGui.QWidget()
         self.tab.setObjectName(_fromUtf8("tab"))
-        self.verticalLayout_2 = QtGui.QVBoxLayout(self.tab)
-        self.verticalLayout_2.setObjectName(_fromUtf8("verticalLayout_2"))
-        self.horizontalLayout_2 = QtGui.QHBoxLayout()
+        self.horizontalLayout_2 = QtGui.QHBoxLayout(self.tab)
         self.horizontalLayout_2.setObjectName(_fromUtf8("horizontalLayout_2"))
-        self.gPyro = PlotWidget(self.tab)
+        self.verticalLayout_2 = QtGui.QVBoxLayout()
+        self.verticalLayout_2.setObjectName(_fromUtf8("verticalLayout_2"))
+        self.splitter = QtGui.QSplitter(self.tab)
+        self.splitter.setOrientation(QtCore.Qt.Horizontal)
+        self.splitter.setObjectName(_fromUtf8("splitter"))
+        self.gPyro = PlotWidget(self.splitter)
         self.gPyro.setObjectName(_fromUtf8("gPyro"))
-        self.horizontalLayout_2.addWidget(self.gPyro)
-        self.gSignal = PlotWidget(self.tab)
+        self.gSignal = PlotWidget(self.splitter)
         self.gSignal.setObjectName(_fromUtf8("gSignal"))
-        self.horizontalLayout_2.addWidget(self.gSignal)
-        self.verticalLayout_2.addLayout(self.horizontalLayout_2)
+        self.verticalLayout_2.addWidget(self.splitter)
         self.gridLayout_2 = QtGui.QGridLayout()
         self.gridLayout_2.setObjectName(_fromUtf8("gridLayout_2"))
         self.tPmBgEn = QFNumberEdit(self.tab)
@@ -176,7 +177,32 @@ class Ui_MainWindow(object):
         self.gridLayout.addWidget(self.bStart, 0, 1, 1, 1)
         self.horizontalLayout_3.addLayout(self.gridLayout)
         self.verticalLayout_2.addLayout(self.horizontalLayout_3)
+        self.verticalLayout_2.setStretch(0, 10)
+        self.verticalLayout_2.setStretch(1, 1)
+        self.verticalLayout_2.setStretch(2, 1)
+        self.horizontalLayout_2.addLayout(self.verticalLayout_2)
         self.tabWidget.addTab(self.tab, _fromUtf8(""))
+        self.tabPC = QtGui.QWidget()
+        self.tabPC.setObjectName(_fromUtf8("tabPC"))
+        self.verticalLayout_4 = QtGui.QVBoxLayout(self.tabPC)
+        self.verticalLayout_4.setObjectName(_fromUtf8("verticalLayout_4"))
+        self.gPC = DoubleYPlot(self.tabPC)
+        self.gPC.setObjectName(_fromUtf8("gPC"))
+        self.verticalLayout_4.addWidget(self.gPC)
+        self.gridLayout_3 = QtGui.QGridLayout()
+        self.gridLayout_3.setObjectName(_fromUtf8("gridLayout_3"))
+        self.groupBox_4 = QtGui.QGroupBox(self.tabPC)
+        self.groupBox_4.setFlat(True)
+        self.groupBox_4.setObjectName(_fromUtf8("groupBox_4"))
+        self.horizontalLayout_8 = QtGui.QHBoxLayout(self.groupBox_4)
+        self.horizontalLayout_8.setContentsMargins(0, 10, 0, 0)
+        self.horizontalLayout_8.setObjectName(_fromUtf8("horizontalLayout_8"))
+        self.tPCThreshold = QFNumberEdit(self.groupBox_4)
+        self.tPCThreshold.setObjectName(_fromUtf8("tPCThreshold"))
+        self.horizontalLayout_8.addWidget(self.tPCThreshold)
+        self.gridLayout_3.addWidget(self.groupBox_4, 0, 0, 1, 1)
+        self.verticalLayout_4.addLayout(self.gridLayout_3)
+        self.tabWidget.addTab(self.tabPC, _fromUtf8(""))
         self.tab_2 = QtGui.QWidget()
         self.tab_2.setObjectName(_fromUtf8("tab_2"))
         self.verticalLayout_3 = QtGui.QVBoxLayout(self.tab_2)
@@ -277,6 +303,8 @@ class Ui_MainWindow(object):
         self.bPause.setText(_translate("MainWindow", "Pause", None))
         self.bStart.setText(_translate("MainWindow", "Start", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab), _translate("MainWindow", "Experimental Settings", None))
+        self.groupBox_4.setTitle(_translate("MainWindow", "PC Threshold", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabPC), _translate("MainWindow", "Photon Counting", None))
         self.bClearScan.setText(_translate("MainWindow", "Clear", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_2), _translate("MainWindow", "Scan", None))
         self.menuFile.setTitle(_translate("MainWindow", "File", None))
@@ -288,5 +316,5 @@ class Ui_MainWindow(object):
         self.mSpexOpen.setText(_translate("MainWindow", "Open SPEX Settings", None))
 
 from pyqtgraph import PlotWidget
-from InstsAndQt.customQt import QFNumberEdit
+from InstsAndQt.customQt import QFNumberEdit, DoubleYPlot
 from clickablePlotWidget import ClickablePlotWidget

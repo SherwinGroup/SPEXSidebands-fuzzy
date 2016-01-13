@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'C:\Users\dvalovcin\Documents\GitHub\SPEXSidebands-fuzzy\Settings.ui'
 #
-# Created: Wed Dec 09 15:19:41 2015
+# Created: Mon Jan 04 14:51:17 2016
 #      by: PyQt4 UI code generator 4.10.4
 #
 # WARNING! All changes made in this file will be lost!
@@ -197,9 +197,16 @@ class Ui_Settings(object):
         self.tSaveComments.setObjectName(_fromUtf8("tSaveComments"))
         self.horizontalLayout_10.addWidget(self.tSaveComments)
         self.verticalLayout_2.addLayout(self.horizontalLayout_10)
+        self.horizontalLayout_12 = QtGui.QHBoxLayout()
+        self.horizontalLayout_12.setObjectName(_fromUtf8("horizontalLayout_12"))
         self.cbSaveWaveforms = QtGui.QCheckBox(Settings)
         self.cbSaveWaveforms.setObjectName(_fromUtf8("cbSaveWaveforms"))
-        self.verticalLayout_2.addWidget(self.cbSaveWaveforms)
+        self.horizontalLayout_12.addWidget(self.cbSaveWaveforms)
+        self.cbPC = QtGui.QCheckBox(Settings)
+        self.cbPC.setEnabled(False)
+        self.cbPC.setObjectName(_fromUtf8("cbPC"))
+        self.horizontalLayout_12.addWidget(self.cbPC)
+        self.verticalLayout_2.addLayout(self.horizontalLayout_12)
         self.buttonBox = QtGui.QDialogButtonBox(Settings)
         self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
         self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Cancel|QtGui.QDialogButtonBox.Ok)
@@ -245,5 +252,6 @@ class Ui_Settings(object):
         self.tTemp.setText(_translate("Settings", "0", None))
         self.label_11.setText(_translate("Settings", "Save Comments:", None))
         self.cbSaveWaveforms.setText(_translate("Settings", "Save waveforms instead of boxcars", None))
+        self.cbPC.setText(_translate("Settings", "Photon Count Waveforms", None))
 
 from InstsAndQt.customQt import QINumberEdit, QFNumberEdit
