@@ -262,7 +262,7 @@
      <item>
       <widget class="QLabel" name="label_9">
        <property name="text">
-        <string>FEL Power (W)</string>
+        <string>FEL Energy (mJ)</string>
        </property>
       </widget>
      </item>
@@ -400,12 +400,12 @@
  </widget>
  <customwidgets>
   <customwidget>
-   <class>QFNumberEdit</class>
+   <class>QINumberEdit</class>
    <extends>QLineEdit</extends>
    <header>InstsAndQt.customQt</header>
   </customwidget>
   <customwidget>
-   <class>QINumberEdit</class>
+   <class>QFNumberEdit</class>
    <extends>QLineEdit</extends>
    <header>InstsAndQt.customQt</header>
   </customwidget>

@@ -7,7 +7,7 @@ Created on Tue Feb 03 12:53:22 2015
 
 import numpy as np
 from PyQt4 import QtGui, QtCore
-from SPEXWindow_ui import Ui_MainWindow
+from UIs.SPEXWindow_ui import Ui_MainWindow
 import threading
 import time
 from InstsAndQt.Instruments import SPEX

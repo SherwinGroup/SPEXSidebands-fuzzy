@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:\Users\dvalovcin\Documents\GitHub\SPEXSidebands-fuzzy\Settings.ui'
+# Form implementation generated from reading ui file 'C:\Users\FELLab\Documents\GitHub\SPEXSidebands-fuzzy\UIs\Settings.ui'
 #
-# Created: Mon Jan 04 14:51:17 2016
-#      by: PyQt4 UI code generator 4.10.4
+# Created: Wed Jan 13 17:41:09 2016
+#      by: PyQt4 UI code generator 4.11.3
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -242,7 +242,7 @@ class Ui_Settings(object):
         self.cbFilterWhite.setText(_translate("Settings", "White", None))
         self.cbFilterBlue.setText(_translate("Settings", "Blue", None))
         self.cbFilterTriplet.setText(_translate("Settings", "Triplet", None))
-        self.label_9.setText(_translate("Settings", "FEL Power (W)", None))
+        self.label_9.setText(_translate("Settings", "FEL Energy (mJ)", None))
         self.tFELP.setText(_translate("Settings", "0", None))
         self.label_15.setText(_translate("Settings", "FEL  (cm-1)", None))
         self.tFELLam.setText(_translate("Settings", "0", None))
