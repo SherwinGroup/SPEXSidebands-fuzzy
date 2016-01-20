@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:\Users\dvalovcin\Documents\GitHub\SPEXSidebands-fuzzy\SPEXWindow.ui'
+# Form implementation generated from reading ui file 'C:\Users\dvalovcin\Documents\GitHub\SPEXSidebands-fuzzy\UIs\SPEXWindow.ui'
 #
-# Created: Mon May 04 13:02:16 2015
-#      by: PyQt4 UI code generator 4.9.6
+# Created by: PyQt4 UI code generator 4.11.4
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -23,11 +22,14 @@ except AttributeError:
     def _translate(context, text, disambig):
         return QtGui.QApplication.translate(context, text, disambig)
 
-class Ui_MainWindow(object):
-    def setupUi(self, MainWindow):
-        MainWindow.setObjectName(_fromUtf8("MainWindow"))
-        MainWindow.resize(300, 127)
-        self.centralwidget = QtGui.QWidget(MainWindow)
+class Ui_SPEXController(object):
+    def setupUi(self, SPEXController):
+        SPEXController.setObjectName(_fromUtf8("SPEXController"))
+        SPEXController.resize(301, 127)
+        icon = QtGui.QIcon()
+        icon.addPixmap(QtGui.QPixmap(_fromUtf8(":/test/SPEXIcon.jpg")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        SPEXController.setWindowIcon(icon)
+        self.centralwidget = QtGui.QWidget(SPEXController)
         self.centralwidget.setObjectName(_fromUtf8("centralwidget"))
         self.verticalLayout = QtGui.QVBoxLayout(self.centralwidget)
         self.verticalLayout.setObjectName(_fromUtf8("verticalLayout"))
@@ -61,31 +63,32 @@ class Ui_MainWindow(object):
         self.verticalLayout.addLayout(self.horizontalLayout_2)
         spacerItem2 = QtGui.QSpacerItem(20, 40, QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Expanding)
         self.verticalLayout.addItem(spacerItem2)
-        MainWindow.setCentralWidget(self.centralwidget)
-        self.menubar = QtGui.QMenuBar(MainWindow)
-        self.menubar.setGeometry(QtCore.QRect(0, 0, 300, 21))
+        SPEXController.setCentralWidget(self.centralwidget)
+        self.menubar = QtGui.QMenuBar(SPEXController)
+        self.menubar.setGeometry(QtCore.QRect(0, 0, 301, 21))
         self.menubar.setObjectName(_fromUtf8("menubar"))
         self.menuFile = QtGui.QMenu(self.menubar)
         self.menuFile.setObjectName(_fromUtf8("menuFile"))
-        MainWindow.setMenuBar(self.menubar)
-        self.statusbar = QtGui.QStatusBar(MainWindow)
+        SPEXController.setMenuBar(self.menubar)
+        self.statusbar = QtGui.QStatusBar(SPEXController)
         self.statusbar.setObjectName(_fromUtf8("statusbar"))
-        MainWindow.setStatusBar(self.statusbar)
-        self.actionInitiate_SPEX = QtGui.QAction(MainWindow)
+        SPEXController.setStatusBar(self.statusbar)
+        self.actionInitiate_SPEX = QtGui.QAction(SPEXController)
         self.actionInitiate_SPEX.setObjectName(_fromUtf8("actionInitiate_SPEX"))
         self.menuFile.addAction(self.actionInitiate_SPEX)
         self.menubar.addAction(self.menuFile.menuAction())
 
-        self.retranslateUi(MainWindow)
-        QtCore.QMetaObject.connectSlotsByName(MainWindow)
+        self.retranslateUi(SPEXController)
+        QtCore.QMetaObject.connectSlotsByName(SPEXController)
 
-    def retranslateUi(self, MainWindow):
-        MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow", None))
-        self.label.setText(_translate("MainWindow", "Goto Wavenumber:", None))
-        self.bGo.setText(_translate("MainWindow", "Go", None))
-        self.label_2.setText(_translate("MainWindow", "SPEX GPIB:", None))
-        self.bDone.setText(_translate("MainWindow", "OK", None))
-        self.menuFile.setTitle(_translate("MainWindow", "File", None))
-        self.actionInitiate_SPEX.setText(_translate("MainWindow", "Initiate SPEX...", None))
+    def retranslateUi(self, SPEXController):
+        SPEXController.setWindowTitle(_translate("SPEXController", "SPEX Control Window", None))
+        self.label.setText(_translate("SPEXController", "Goto Wavenumber:", None))
+        self.bGo.setText(_translate("SPEXController", "Go", None))
+        self.label_2.setText(_translate("SPEXController", "SPEX GPIB:", None))
+        self.bDone.setText(_translate("SPEXController", "OK", None))
+        self.menuFile.setTitle(_translate("SPEXController", "File", None))
+        self.actionInitiate_SPEX.setText(_translate("SPEXController", "Initiate SPEX...", None))
 
 from pyqtgraph import SpinBox
+import resources_rc

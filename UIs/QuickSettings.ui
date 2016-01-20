@@ -17,7 +17,7 @@
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout_3">
      <item>
-      <widget class="QLabel" name="label_3">
+      <widget class="QLabel" name="lStartWN">
        <property name="text">
         <string>Starting WN</string>
        </property>
@@ -27,7 +27,7 @@
       <widget class="QFNumberEdit" name="tStartWN"/>
      </item>
      <item>
-      <widget class="QLabel" name="label_4">
+      <widget class="QLabel" name="lStepWN">
        <property name="text">
         <string>Step</string>
        </property>
@@ -37,7 +37,7 @@
       <widget class="QFNumberEdit" name="tStepWN"/>
      </item>
      <item>
-      <widget class="QLabel" name="label_5">
+      <widget class="QLabel" name="lEndWN">
        <property name="text">
         <string>Ending WN</string>
        </property>

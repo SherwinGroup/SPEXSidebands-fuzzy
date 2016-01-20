@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:\Users\FELLab\Documents\GitHub\SPEXSidebands-fuzzy\UIs\Settings.ui'
+# Form implementation generated from reading ui file 'C:\Users\dvalovcin\Documents\GitHub\SPEXSidebands-fuzzy\UIs\Settings.ui'
 #
-# Created: Wed Jan 13 17:41:09 2016
-#      by: PyQt4 UI code generator 4.11.3
+# Created by: PyQt4 UI code generator 4.11.4
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -52,21 +51,21 @@ class Ui_Settings(object):
         self.verticalLayout_2.addLayout(self.horizontalLayout_9)
         self.horizontalLayout_3 = QtGui.QHBoxLayout()
         self.horizontalLayout_3.setObjectName(_fromUtf8("horizontalLayout_3"))
-        self.label_3 = QtGui.QLabel(Settings)
-        self.label_3.setObjectName(_fromUtf8("label_3"))
-        self.horizontalLayout_3.addWidget(self.label_3)
+        self.lStartWN = QtGui.QLabel(Settings)
+        self.lStartWN.setObjectName(_fromUtf8("lStartWN"))
+        self.horizontalLayout_3.addWidget(self.lStartWN)
         self.tStartWN = QFNumberEdit(Settings)
         self.tStartWN.setObjectName(_fromUtf8("tStartWN"))
         self.horizontalLayout_3.addWidget(self.tStartWN)
-        self.label_4 = QtGui.QLabel(Settings)
-        self.label_4.setObjectName(_fromUtf8("label_4"))
-        self.horizontalLayout_3.addWidget(self.label_4)
+        self.lStepWN = QtGui.QLabel(Settings)
+        self.lStepWN.setObjectName(_fromUtf8("lStepWN"))
+        self.horizontalLayout_3.addWidget(self.lStepWN)
         self.tStepWN = QFNumberEdit(Settings)
         self.tStepWN.setObjectName(_fromUtf8("tStepWN"))
         self.horizontalLayout_3.addWidget(self.tStepWN)
-        self.label_5 = QtGui.QLabel(Settings)
-        self.label_5.setObjectName(_fromUtf8("label_5"))
-        self.horizontalLayout_3.addWidget(self.label_5)
+        self.lEndWN = QtGui.QLabel(Settings)
+        self.lEndWN.setObjectName(_fromUtf8("lEndWN"))
+        self.horizontalLayout_3.addWidget(self.lEndWN)
         self.tEndWN = QFNumberEdit(Settings)
         self.tEndWN.setObjectName(_fromUtf8("tEndWN"))
         self.horizontalLayout_3.addWidget(self.tEndWN)
@@ -224,9 +223,9 @@ class Ui_Settings(object):
         self.cAGPIB.setToolTip(_translate("Settings", "<html><head/><body><p>USB...</p></body></html>", None))
         self.label_2.setText(_translate("Settings", "SPEX GPIB", None))
         self.cSGPIB.setToolTip(_translate("Settings", "<html><head/><body><p>GPIB0::4::INSTR</p></body></html>", None))
-        self.label_3.setText(_translate("Settings", "Starting WN", None))
-        self.label_4.setText(_translate("Settings", "Step", None))
-        self.label_5.setText(_translate("Settings", "Ending WN", None))
+        self.lStartWN.setText(_translate("Settings", "Starting WN", None))
+        self.lStepWN.setText(_translate("Settings", "Step", None))
+        self.lEndWN.setText(_translate("Settings", "Ending WN", None))
         self.label_10.setText(_translate("Settings", "Average", None))
         self.label_18.setText(_translate("Settings", "Go to SB #:", None))
         self.label_19.setText(_translate("Settings", "+/-", None))
@@ -254,4 +253,4 @@ class Ui_Settings(object):
         self.cbSaveWaveforms.setText(_translate("Settings", "Save waveforms instead of boxcars", None))
         self.cbPC.setText(_translate("Settings", "Photon Count Waveforms", None))
 
-from InstsAndQt.customQt import QINumberEdit, QFNumberEdit
+from InstsAndQt.customQt import QFNumberEdit, QINumberEdit

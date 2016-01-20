@@ -21,6 +21,7 @@ try:
 except Exception as e:
     raise IOError('Instrument library not found. Often placed in another directory')
 from InstsAndQt.PyroOscope.OscWid import OscWid
+import motordriver as md
 from SPEXWin import SPEXWin
 from UIs.MainWindow_ui import Ui_MainWindow
 from UIs.Settings_ui import Ui_Settings
@@ -50,6 +51,18 @@ handler1.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - [%(filename)s:%(lineno)s - %(funcName)s()] - %(levelname)s - %(message)s')
 handler1.setFormatter(formatter)
 log.addHandler(handler1)
+
+
+
+seriesTags = {"FELL": "fel_lambda",
+              "FELP": "fel_power",
+              "NIRP": "nir_power",
+              "NIRL": "nir_lambda",
+              "FELTRANS": "fel_transmission",
+              "PMHV": "pm_hv",
+              "TEMP": "temperature"}
+
+
 
 
 """
@@ -193,6 +206,11 @@ class MainWin(QtGui.QMainWindow):
         self.openAgi()
         self.SPEXWindow = None
         self.pulseWidth = 2e-6
+        try:
+            self.motorDriver = md.MotorWindow()
+        except Exception as e:
+            log.error("Error loading motor driver!")
+            self.motorDriver = None
         
     def initUI(self):
         self.ui = Ui_MainWindow()
@@ -530,21 +548,6 @@ class MainWin(QtGui.QMainWindow):
                 pass
         
     def integrateData(self, data):
-        #
-        # #Neater and maybe solve issues if the data happens to update
-        # #while trying to do analysis?
-        # pmD = self.settings['pmData']
-        # # If you pause before you start, there can be a tiny, tiny lag which
-        # # causes some asychronization
-        # # Usually fixed by just waiting a moment and then getting the data
-        # try:
-        #     pmD[:]
-        # except:
-        #     time.sleep(0.01)
-        #     pmD = self.settings['pmData']
-
-
-
         dt = np.diff(data[:2,0])[0]
 
         pmBGbounds = self.boxcarRegions[0].getRegion()
@@ -598,6 +601,10 @@ class MainWin(QtGui.QMainWindow):
 
     def getSeries(self):
         sers = str(self.ui.tSeries.text())
+        # try:
+        #     s = {"fel_transmission": float(self.motorDriver.ui.tCosCalc.text())}
+        # except:
+        #     s = {"fel_transmission": 1.0}
         sers = sers.format(NIRP=self.settings['nir_power'],
                      NIRL=self.settings['nir_lambda'],
                      FELP=self.settings['fel_power'],
@@ -1510,6 +1517,17 @@ class QuickSettingsDialog(QtGui.QDialog):
             self.ui.tStepWN.setEnabled(False)
             self.ui.tEndWN.setEnabled(False)
 
+
+        enabled = settings["saveWaveforms"]
+        self.ui.lStartWN.setVisible(not enabled)
+        self.ui.tStartWN.setVisible(not enabled)
+        self.ui.tStepWN.setVisible(not enabled)
+        self.ui.lStepWN.setVisible(not enabled)
+        if enabled:
+            self.ui.lEndWN.setText("Wavenumber")
+        else:
+            self.ui.lEndWN.setText("Ending WN")
+
     @staticmethod
     def getSettings(parent = None, settings = None):
         dialog = QuickSettingsDialog(parent, settings)
@@ -1560,7 +1578,9 @@ class SettingsDialog(QtGui.QDialog):
             self.ui.tGotoSB
         ]
         [i.textAccepted.connect(self.calcAutoSB) for i in self.calcSBBoxes]
-        # self.ui.cbSaveWaveforms.toggled.connect(self.togglePC)
+        self.ui.cbSaveWaveforms.toggled.connect(self.toggleWFs)
+        self.toggleWFs(settings["saveWaveforms"])
+
         self.calcSBBoxes.pop(self.calcSBBoxes.index(self.ui.tGotoSB))
         # Want this to be connected to something else so
         # you can parse a nm input
@@ -1671,6 +1691,8 @@ class SettingsDialog(QtGui.QDialog):
 
         return (settings, result==QtGui.QDialog.Accepted)
 
+
+
     def calcAutoSB(self):
         if 0 in [int(i.value()) for i in self.calcSBBoxes]:
             return
@@ -1687,10 +1709,15 @@ class SettingsDialog(QtGui.QDialog):
             self.ui.tNIRLam.setText("{:.1f}".format(10000000/val))
         self.calcAutoSB()
 
-    def togglePC(self, enabled):
-        self.ui.cbPC.setEnabled(enabled)
-        if not enabled:
-            self.ui.cbPC.setChecked(enabled)
+    def toggleWFs(self, enabled):
+        self.ui.lStartWN.setVisible(not enabled)
+        self.ui.tStartWN.setVisible(not enabled)
+        self.ui.tStepWN.setVisible(not enabled)
+        self.ui.lStepWN.setVisible(not enabled)
+        if enabled:
+            self.ui.lEndWN.setText("Wavenumber")
+        else:
+            self.ui.lEndWN.setText("Ending WN")
 
 class MessageDialog(QtGui.QDialog):
     def __init__(self, parent, message="", duration=3000):
