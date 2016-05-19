@@ -732,16 +732,11 @@ class MainWin(QtGui.QMainWindow):
                 if isValid:
                     num += 1
 
-
-
-
                     # decide which data set we want
                     if self.settings["doPC"]:
                         data = self.settings["pcData"]
                     else:
                         data = self.settings["pmData"]
-
-
 
                     if self.settings["saveWaveforms"]:
                         pyD = self.oscWidget.getData()
