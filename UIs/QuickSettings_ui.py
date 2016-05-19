@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:\Users\dvalovcin\Documents\GitHub\SPEXSidebands-fuzzy\QuickSettings.ui'
+# Form implementation generated from reading ui file 'C:\Users\dvalovcin\Documents\GitHub\SPEXSidebands-fuzzy\UIs\QuickSettings.ui'
 #
-# Created: Tue Oct 20 14:12:59 2015
-#      by: PyQt4 UI code generator 4.10.4
+# Created by: PyQt4 UI code generator 4.11.4
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -31,21 +30,21 @@ class Ui_QuickSettings(object):
         self.verticalLayout.setObjectName(_fromUtf8("verticalLayout"))
         self.horizontalLayout_3 = QtGui.QHBoxLayout()
         self.horizontalLayout_3.setObjectName(_fromUtf8("horizontalLayout_3"))
-        self.label_3 = QtGui.QLabel(QuickSettings)
-        self.label_3.setObjectName(_fromUtf8("label_3"))
-        self.horizontalLayout_3.addWidget(self.label_3)
+        self.lStartWN = QtGui.QLabel(QuickSettings)
+        self.lStartWN.setObjectName(_fromUtf8("lStartWN"))
+        self.horizontalLayout_3.addWidget(self.lStartWN)
         self.tStartWN = QFNumberEdit(QuickSettings)
         self.tStartWN.setObjectName(_fromUtf8("tStartWN"))
         self.horizontalLayout_3.addWidget(self.tStartWN)
-        self.label_4 = QtGui.QLabel(QuickSettings)
-        self.label_4.setObjectName(_fromUtf8("label_4"))
-        self.horizontalLayout_3.addWidget(self.label_4)
+        self.lStepWN = QtGui.QLabel(QuickSettings)
+        self.lStepWN.setObjectName(_fromUtf8("lStepWN"))
+        self.horizontalLayout_3.addWidget(self.lStepWN)
         self.tStepWN = QFNumberEdit(QuickSettings)
         self.tStepWN.setObjectName(_fromUtf8("tStepWN"))
         self.horizontalLayout_3.addWidget(self.tStepWN)
-        self.label_5 = QtGui.QLabel(QuickSettings)
-        self.label_5.setObjectName(_fromUtf8("label_5"))
-        self.horizontalLayout_3.addWidget(self.label_5)
+        self.lEndWN = QtGui.QLabel(QuickSettings)
+        self.lEndWN.setObjectName(_fromUtf8("lEndWN"))
+        self.horizontalLayout_3.addWidget(self.lEndWN)
         self.tEndWN = QFNumberEdit(QuickSettings)
         self.tEndWN.setObjectName(_fromUtf8("tEndWN"))
         self.horizontalLayout_3.addWidget(self.tEndWN)
@@ -115,9 +114,9 @@ class Ui_QuickSettings(object):
 
     def retranslateUi(self, QuickSettings):
         QuickSettings.setWindowTitle(_translate("QuickSettings", "Scan Settings", None))
-        self.label_3.setText(_translate("QuickSettings", "Starting WN", None))
-        self.label_4.setText(_translate("QuickSettings", "Step", None))
-        self.label_5.setText(_translate("QuickSettings", "Ending WN", None))
+        self.lStartWN.setText(_translate("QuickSettings", "Starting WN", None))
+        self.lStepWN.setText(_translate("QuickSettings", "Step", None))
+        self.lEndWN.setText(_translate("QuickSettings", "Ending WN", None))
         self.label_10.setText(_translate("QuickSettings", "Average", None))
         self.label_18.setText(_translate("QuickSettings", "Go to SB #:", None))
         self.label_19.setText(_translate("QuickSettings", "+/-", None))
@@ -128,4 +127,4 @@ class Ui_QuickSettings(object):
         self.cbFilterBlue.setText(_translate("QuickSettings", "Blue", None))
         self.cbFilterTriplet.setText(_translate("QuickSettings", "Triplet", None))
 
-from InstsAndQt.customQt import QINumberEdit, QFNumberEdit
+from InstsAndQt.customQt import QFNumberEdit, QINumberEdit

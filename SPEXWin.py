@@ -7,7 +7,7 @@ Created on Tue Feb 03 12:53:22 2015
 
 import numpy as np
 from PyQt4 import QtGui, QtCore
-from SPEXWindow_ui import Ui_MainWindow
+from UIs.SPEXWindow_ui import Ui_SPEXController
 import threading
 import time
 from InstsAndQt.Instruments import SPEX
@@ -29,7 +29,7 @@ class SPEXWin(QtGui.QMainWindow):
     def __init__(self, SPEXInfo = None, parent = None):
         '''SPEXInfo should be either the GPIB to which it should open, or an actual instrument handle'''
         super(SPEXWin, self).__init__()
-        if not parent == None:
+        if not parent is None:
             self.settings = parent.settings
             self.SPEX = parent.SPEX
             parent.wnUpdateSig.connect(self.updateStatusBarBoth)
@@ -62,7 +62,7 @@ class SPEXWin(QtGui.QMainWindow):
 
         
     def initUI(self):
-        self.ui = Ui_MainWindow()
+        self.ui = Ui_SPEXController()
         self.ui.setupUi(self)
         
         self.tGot = QtGui.QLabel(self)
@@ -96,6 +96,8 @@ class SPEXWin(QtGui.QMainWindow):
             pass
         try:
             self.SPEX = SPEX(str(self.ui.cGPIB.currentText()))
+            pos = self.SPEX.stepsToWN(self.SPEX.curStep())
+            self.ui.sbGoto.setValue(pos)
             print 'SPEX opened'
         except:
             print 'Error opening SPEX. Adding Fake'
