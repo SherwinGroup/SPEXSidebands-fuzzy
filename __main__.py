@@ -21,6 +21,7 @@ try:
 except Exception as e:
     raise IOError('Instrument library not found. Often placed in another directory')
 from InstsAndQt.PyroOscope.OscWid import OscWid
+from InstsAndQt.customQt import TempThread
 import motordriver as md
 from SPEXWin import SPEXWin
 from UIs.MainWindow_ui import Ui_MainWindow
@@ -179,17 +180,23 @@ class MainWin(QtGui.QMainWindow):
     sigNewStep = QtCore.pyqtSignal()
 
     sigScanFinished = QtCore.pyqtSignal()
+
+    # for updating arbitrary elements. First arg is callable,
+    # second is args
+    sigUpdateGuiElement = QtCore.pyqtSignal(object, object)
     
     #Thread which handles polling the oscilloscope
     scopeCollectionThread = None
     #Thread which handles scanning the SPEX and updating data, etc
     scanRunningThread = None
+
+    # Thread for controlling thz power sweep
+    thThzSweep = TempThread()
     def __init__(self):
         super(MainWin, self).__init__()
         self.initSettings()
         if self.checkSaveFile():
             self.loadSettings()
-
 
         self.initUI()
         # self.pyDataSig.connect(self.updatePyroGraph)
@@ -200,7 +207,8 @@ class MainWin(QtGui.QMainWindow):
         self.boxcarSig.connect(self.updateBoxcarTexts)
         self.sigNewStep.connect(self.updateScan)
         self.sigScanFinished.connect(self.finishScan)
-
+        self.sigUpdateGuiElement.connect(self.createGuiElement)
+        self.thThzSweep.target = self.doTHzPowerSweep
         
         self.openSPEX()
         self.openAgi()
@@ -208,9 +216,14 @@ class MainWin(QtGui.QMainWindow):
         self.pulseWidth = 2e-6
         try:
             self.motorDriver = md.MotorWindow()
+            self.ui.tabWidget.addTab(self.motorDriver, "THz Attenuator")
+
+            self.mDoThzSweep = self.ui.menuFile.addAction("Do THz Power Sweep")
+            self.mDoThzSweep.setCheckable(True)
+            self.mDoThzSweep.triggered.connect(self.startTHzPowerSweep)
         except Exception as e:
             log.error("Error loading motor driver!")
-            self.motorDriver = None
+            # self.motorDriver = None
         
     def initUI(self):
         self.ui = Ui_MainWindow()
@@ -380,6 +393,7 @@ class MainWin(QtGui.QMainWindow):
         s["saveWaveforms"] = False
         s["doPC"] = False
         s["PCThreshold"] = 0
+        s["thzSweepPoints"] = []
         
         #boundaries for boxcar integration
         #bc[py|pm] -> boxcar[Pyro|PMT]
@@ -601,10 +615,10 @@ class MainWin(QtGui.QMainWindow):
 
     def getSeries(self):
         sers = str(self.ui.tSeries.text())
-        # try:
-        #     s = {"fel_transmission": float(self.motorDriver.ui.tCosCalc.text())}
-        # except:
-        #     s = {"fel_transmission": 1.0}
+        try:
+            s = {"fel_transmission": float(self.motorDriver.ui.tCosCalc.text())}
+        except:
+            s = {"fel_transmission": 1.0}
         sers = sers.format(NIRP=self.settings['nir_power'],
                      NIRL=self.settings['nir_lambda'],
                      FELP=self.settings['fel_power'],
@@ -792,174 +806,7 @@ class MainWin(QtGui.QMainWindow):
         #clean up after done
         self.sigScanFinished.emit()
 
-    """
-    def runScanLoopOld(self):
-        # Lets the scope know to start counting pulses,
-        # calculating fields, intensities and
-        # emitting signals for it
-        self.oscWidget.startExposure()
-        if self.settings["stepWN"] == 0 or self.settings["saveWaveforms"]:
-            WNRange = np.array([self.settings['endWN']])
-        else:
-            WNRange = np.arange(self.settings['startWN'],
-                                    self.settings['endWN'], self.settings['stepWN'])
-            WNRange = np.append(WNRange, self.settings['endWN'])
 
-        for wavenumber in WNRange:
-            if not self.settings['runningScan']:
-                log.info('breaking scan')
-                break
-            self.settings['collectingData'] = False
-            self.SPEX.gotoWN(wavenumber)
-            self.statusSig.emit(['Wavenumber: {}/{}. No. {}/{}'.format(
-                wavenumber, WNRange[-1], 0, self.settings['ave']), 0])
-            self.wnUpdateSig.emit(str(wavenumber), str(self.SPEX.currentPositionWN))
-            num = 0 # number of averages. Doing it this way so that if we want to implement
-                    # something where we don't count a number, then we can decline decrementing
-                    # effectively saying the point didn't happen
-            missed = 0
-            self.settings['collectingData'] = True
-            while num < self.settings['ave']:
-                if not self.settings['runningScan']:
-                    break
-                # Now want to take data. This means we need to wait for the oscilloscope to
-                # finish collecting its current round. Enter a waiting loop.
-                # Note: the event loop has to be instantiated here. I'm not sure why,
-                # probably a main thread/worker thread/mutexing bullshit reason.
-                #
-                # Also note, it's connected to the oscWidget, which is really the
-                # pyro widget. This signal will inform the thread whether
-                # the pulse was valid or not, since it handles that logic
-                self.waitingForDataLoop = QtCore.QEventLoop()
-                self.oscWidget.sigPulseCounted.connect(self.waitingForDataLoop.exit)
-                ret = self.waitingForDataLoop.exec_()
-
-                # the exit value of the waiting loop is given by the signal from
-                # oscWid, and is negative for missed pulses
-                isValid = True
-                if ret<0: isValid = False
-
-                # If you don't disconnect it, you get a really bad memory leak
-                # I think qt will keep an internal reference when you connect
-                # signals/slots, and this was just creating a vast amount of
-                # qeventloop's
-                self.oscWidget.sigPulseCounted.disconnect(self.waitingForDataLoop.exit)
-                sig = self.integrateData()
-
-                if self.settings['pm_hv'] == 700:
-                    mult = 10
-                    # print "700 V setting, mult = {}".format(mult)
-                else:
-                    mult = 1
-                    # print "Not 700 V setting, {}, mult = {}".format(self.settings['pm_hv'], mult)
-
-                sig *= mult # to account for the difference between 700 V and 1kV
-
-                # also account for the attenuation due to the filters
-                T = 1
-                T = T * mrWhite(1e7/wavenumber) if self.settings["filter"] & filterBFWhite else T
-                T = T * mrBlue(1e7/wavenumber) if self.settings["filter"] & filterBFBlue else T
-                T = T * mrTriplet(1e7/wavenumber) if self.settings["filter"] & filterBFTriplet else T
-                sig /= T
-
-                if str(self.ui.tSidebandNumber.text()) == '0':
-                    # Don't worry about FEL when looking at the
-                    # laser line
-                    isValid = True
-                if isValid:
-                    num += 1
-                    if self.settings["saveWaveforms"]:
-                        pyD = self.oscWidget.getData()
-                        pmD = self.settings['pmData']
-                        if self.settings["doPC"]:
-                            pmD = getPhotonCountedWaveform(pmD, self.ui.linePCThreshold.value())
-
-                        oldpyD = self.settings['allReferenceWaveforms']
-                        oldpmD = self.settings['allSignalWaveforms']
-
-                        if pyD.shape[0] != oldpyD.shape[0]:
-                            # This is the first one, grab the time
-                            oldpyD = pyD.copy()
-                            oldpmD = pmD.copy()
-                        else:
-                            oldpyD = np.column_stack((oldpyD, pyD.copy()[:,1]))
-                            oldpmD = np.column_stack((oldpmD, pmD.copy()[:,1]))
-
-                        self.settings['allReferenceWaveforms'] = oldpyD
-                        self.settings['allSignalWaveforms'] = oldpmD
-
-                    else:
-                        self.settings['allData'] = np.append(
-                            self.settings['allData'],
-                            [[wavenumber,
-                              self.oscWidget.settings["pyFP"],
-                              self.oscWidget.settings["pyCD"],
-                              sig]],
-                            axis=0)
-                else:
-                    missed += 1
-                self.sigNewStep.emit()
-                self.statusSig.emit(['Wavenumber: {}/{}. No. {}({})/{}'.format(
-                    wavenumber, WNRange[-1], num, missed, self.settings['ave']), 0])
-        self.oscWidget.stopExposure()
-        filename = str(self.ui.tSaveName.text())
-
-        # Automatically add the sideband to the filename,
-        # using 'p' or 'm' prefix for positive or negative
-        # (since you can't use '-6' and '+6' in filenames
-        sb = str(self.ui.tSidebandNumber.text())
-        if sb: # string is not empty
-            if int(sb)>=0:
-                filename += '_p{}'.format(abs(int(sb)))
-            else:
-                filename += '_m{}'.format(abs(int(sb)))
-
-        filename += '_scanData'
-
-        #save Data. Check if there are any in the folder yet
-        files = glob.glob(os.path.join(self.settings['saveLocation'],str(self.ui.tSaveName.text())
-                                       , filename + '*.txt'))
-        num = len(files)
-
-        if self.settings["saveWaveforms"]:
-            data = self.settings['allSignalWaveforms']
-            time = data[:,0]
-            if self.settings["doPC"]:
-                sigData = data[:,1:].sum(axis=1)
-            else:
-                sigData = data[:,1:].mean(axis=1)*1e3
-            sigErr = data[:,1:].std(axis=1)/np.sqrt(data.shape[1]-1)*1e3
-            data = self.settings['allReferenceWaveforms']
-            refData = data[:,1:].mean(axis=1)*1e3
-            refErr = data[:,1:].std(axis=1)/np.sqrt(data.shape[1]-1)*1e3
-
-            saveData = np.column_stack((time, sigData,sigErr, refData, refErr))
-
-
-            originheader = 'Time,PMT Signal,PMT MeanErr,Ref Signal,Ref MeanErr\n'
-            if self.settings["doPC"]:
-                originheader += 'ms,photons,,mV,mV\n'
-            else:
-                originheader += 'ms,mV,mV,mV,mV\n'
-            originheader += 't,{} PMT,,{} Ref,'.format(self.getSeries(), self.getSeries())
-            fmt = '%.10e'
-
-        else:
-            saveData = self.settings["allData"]
-            originheader = 'Wavenumber, Integrated front porch, Integrated Cavity dump, integrated signal\n'
-            originheader += 'cm-1, arb.u., arb.u., arb.u.'
-            fmt = '%.18e'
-        np.savetxt(os.path.join(
-            self.settings['saveLocation'],str(self.ui.tSaveName.text()),'{}{}.txt'.format(filename, num)),
-            saveData,
-            header = '#'+self.genSaveHeader().replace('\n', '\n#') +  '\n'+originheader,
-            comments='',
-            delimiter=',',
-            fmt = fmt)
-
-        #clean up after done
-        self.sigScanFinished.emit()
-        """
     def finishScan(self):
         self.settings['collectingData'] = False
         self.settings['runningScan'] = False
@@ -1015,6 +862,41 @@ class MainWin(QtGui.QMainWindow):
                     self.sigPCData.emit(pmData)
                 self.pyDataSig.emit(pyData)
 #            time.sleep(.5)
+
+    @staticmethod
+    def _____DATASWEEPS():pass
+    def startTHzPowerSweep(self, val):
+        if not val: #unchecking
+            return
+        st, ok = QtGui.QInputDialog.getText(self,
+                    "Desired Angles",
+                    "Enter angles in deg separated by commas",
+                    text=",".join(map(str, self.settings["thzSweepPoints"])))
+        if not ok:
+            return
+        self.settings["thzSweepPoints"] = [float(i) for i in st.split(',')]
+
+        self.thThzSweep.start()
+
+
+    def doTHzPowerSweep(self):
+        for angle in self.settings["thzSweepPoints"]:
+            if not self.mDoThzSweep.isChecked():
+                break
+            self.sigUpdateGuiElement.emit(
+                self.motorDriver.ui.sbAngle.setValue, angle
+            )
+            self.motorDriver.ui.bGo.clicked.emit(False)
+            time.sleep(0.1)
+            self.motorDriver.thMoveMotor.wait()
+            self.ui.bQuickStart.clicked.emit(False)
+            time.sleep(0.1)
+            self.scanRunningThread.join()
+        self.sigUpdateGuiElement.emit(
+            self.mDoThzSweep.setChecked, False
+        )
+
+
 
     @staticmethod
     def _____GRAPH_UPDATES():pass
@@ -1429,6 +1311,12 @@ class MainWin(QtGui.QMainWindow):
             del savedDict['sGPIB']
 
         self.settings.update(savedDict)
+
+    def createGuiElement(self, func, args):
+        if args is None:
+            func()
+        else:
+            func(args)
 
     def closeEvent(self, event):
         self.saveSettings()
