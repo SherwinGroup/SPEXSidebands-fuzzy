@@ -364,7 +364,7 @@ class MainWin(QtGui.QMainWindow):
         
         #scan settings
         s['startWN'] = 0 #Starting wavenumber
-        s['stepWN'] = -0.5 #how many wavenumbers to steop by
+        s['stepWN'] = -1 #how many wavenumbers to steop by
         s['endWN'] = 0 #Ending wavenumber
         s['ave'] = 10 #How many values to take an average of
         

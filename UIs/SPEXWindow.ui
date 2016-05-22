@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>301</width>
-    <height>127</height>
+    <width>394</width>
+    <height>164</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -48,6 +48,29 @@
        <widget class="QPushButton" name="bGo">
         <property name="text">
          <string>Go</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="lSBO">
+        <property name="text">
+         <string>SB Order</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QSpinBox" name="sbSB">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="minimum">
+         <number>-100</number>
+        </property>
+        <property name="maximum">
+         <number>100</number>
         </property>
        </widget>
       </item>
@@ -107,8 +130,8 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>301</width>
-     <height>21</height>
+     <width>394</width>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
