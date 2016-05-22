@@ -619,12 +619,14 @@ class MainWin(QtGui.QMainWindow):
             s = {"fel_transmission": float(self.motorDriver.ui.tCosCalc.text())}
         except:
             s = {"fel_transmission": 1.0}
+        self.settings.update(s)
         sers = sers.format(NIRP=self.settings['nir_power'],
                      NIRL=self.settings['nir_lambda'],
                      FELP=self.settings['fel_power'],
                      FELL=self.settings['fel_lambda'],
                      TEMP=self.settings['temperature'],
-                     PMHV=self.settings['pm_hv'])
+                     PMHV=self.settings['pm_hv'],
+                     FELTRANS=self.settings["fel_transmission"])
         return sers
 
 
