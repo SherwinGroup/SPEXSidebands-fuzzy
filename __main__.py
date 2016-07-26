@@ -1020,7 +1020,10 @@ class MainWin(QtGui.QMainWindow):
         self.ui.linePCThreshold.blockSignals(False)
 
     def updatePMTGraph(self, data):
-        self.settings['pmData'] = data
+        # save a copy, otherwise there's a race condition
+        # with the multipliers from filters/PMT HV which
+        # cause a jarring view on the screen, which is annoying.
+        self.settings['pmData'] = data.copy()
         self.pPMT.setData(data[:,0], data[:,1])
 
     def updatePCGraph(self, data):
