@@ -151,7 +151,7 @@ def getPhotonCountedWaveform(wf, cutoff=20):
 
     return wfOrig
 
-class MainWin(QtGui.QMainWindow):
+class SPEXScanWin(QtGui.QMainWindow):
     #emits when oscilloscope is done taking data so that
     #the data collecting thread knows it's ready to processes
     updateDataSig = QtCore.pyqtSignal()
@@ -193,27 +193,13 @@ class MainWin(QtGui.QMainWindow):
     # Thread for controlling thz power sweep
     thThzSweep = TempThread()
     def __init__(self):
-        super(MainWin, self).__init__()
+        super(SPEXScanWin, self).__init__()
         self.initSettings()
         if self.checkSaveFile():
             self.loadSettings()
 
         self.initUI()
-        # self.pyDataSig.connect(self.updatePyroGraph)
-        self.pyDataSig.connect(self.oscWidget.setData)
-        self.pmDataSig.connect(self.updatePMTGraph)
-        self.sigPCData.connect(self.updatePCGraph)
-        self.statusSig.connect(self.updateStatusBar)
-        self.boxcarSig.connect(self.updateBoxcarTexts)
-        self.sigNewStep.connect(self.updateScan)
-        self.sigScanFinished.connect(self.finishScan)
-        self.sigUpdateGuiElement.connect(self.createGuiElement)
-        self.thThzSweep.target = self.doTHzPowerSweep
-        
-        self.openSPEX()
-        self.openAgi()
-        self.SPEXWindow = None
-        self.pulseWidth = 2e-6
+
         try:
             self.motorDriver = md.MotorWindow()
             self.ui.tabWidget.addTab(self.motorDriver, "THz Attenuator")
@@ -224,6 +210,23 @@ class MainWin(QtGui.QMainWindow):
         except Exception as e:
             log.error("Error loading motor driver!")
             # self.motorDriver = None
+        self.oscWidget = OscWid(self)
+        self.oscWidget.setParentScope(self)
+        # self.pyDataSig.connect(self.updatePyroGraph)
+        self.pyDataSig.connect(self.oscWidget.setData)
+        self.pmDataSig.connect(self.updatePMTGraph)
+        self.sigPCData.connect(self.updatePCGraph)
+        self.statusSig.connect(self.updateStatusBar)
+        self.boxcarSig.connect(self.updateBoxcarTexts)
+        self.sigNewStep.connect(self.updateScan)
+        self.sigScanFinished.connect(self.finishScan)
+        self.sigUpdateGuiElement.connect(self.createGuiElement)
+        self.thThzSweep.target = self.doTHzPowerSweep
+        self.ui.splitter.insertWidget(0, self.oscWidget)
+        self.openSPEX()
+        self.openAgi()
+        self.SPEXWindow = None
+        self.pulseWidth = 2e-6
         
     def initUI(self):
         self.ui = Ui_MainWindow()
@@ -322,9 +325,6 @@ class MainWin(QtGui.QMainWindow):
 
         # self.ui.splitter_2.setStretchFactor(0, 1)
         # self.ui.splitter_2.setStretchFactor(1, 1)
-        self.oscWidget = OscWid(**self.settings)
-        self.oscWidget.setParentScope(self)
-        self.ui.splitter.insertWidget(0, self.oscWidget)
 
         
         
@@ -1022,7 +1022,10 @@ class MainWin(QtGui.QMainWindow):
         self.ui.linePCThreshold.blockSignals(False)
 
     def updatePMTGraph(self, data):
-        self.settings['pmData'] = data
+        # save a copy, otherwise there's a race condition
+        # with the multipliers from filters/PMT HV which
+        # cause a jarring view on the screen, which is annoying.
+        self.settings['pmData'] = data.copy()
         self.pPMT.setData(data[:,0], data[:,1])
 
     def updatePCGraph(self, data):
@@ -1281,12 +1284,12 @@ class MainWin(QtGui.QMainWindow):
                 'runningScan',
                 'allSignalWaveforms',
                 'allReferenceWaveforms']
-        s = self.oscWidget.getSaveSettings()
-        s.update({
+        # s = self.oscWidget.getSaveSettings()
+        saveDict.update({
             'bcpmBG': self.boxcarRegions[0].getRegion(),
             'bcpmSB': self.boxcarRegions[1].getRegion()
         })
-        saveDict.update(s)
+        # saveDict.update(s)
 
 
         for k in badkeys:
@@ -1644,7 +1647,7 @@ class MessageDialog(QtGui.QDialog):
 def main():
     import sys
     app = QtGui.QApplication(sys.argv)
-    ex = MainWin()
+    ex = SPEXScanWin()
     sys.exit(app.exec_())
 
 

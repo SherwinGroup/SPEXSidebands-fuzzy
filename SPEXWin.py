@@ -97,10 +97,11 @@ class SPEXWin(QtGui.QMainWindow):
 
         self.ui.sbGoto.setOpts(step=1, decimals=1, bounds=(11000, 15000))
         self.ui.cGPIB.currentIndexChanged.connect(self.openSPEX)
+
+        self.ui.actionInitiate_SPEX.triggered.connect(self.initSPEX)
         
         self.show()
-    
-    
+
     def openSPEX(self):
         try:
             self.SPEX.close()
@@ -111,8 +112,17 @@ class SPEXWin(QtGui.QMainWindow):
             pos = self.SPEX.stepsToWN(self.SPEX.curStep())
             self.ui.sbGoto.setValue(pos)
             print 'SPEX opened'
-        except:
-            print 'Error opening SPEX. Adding Fake'
+        except AttributeError:
+            # Don't reset open instrument if
+            # you failed from a boot error
+            if self.SPEX.whereAmI() == 'B':
+                print "SPEX not initialized"
+                return
+        except Exception as e:
+            print 'Error opening SPEX.'
+            log.exception("Couldn't init")
+
+
             self.settings['sGPIB'] = 'Fake'
             self.SPEX = SPEX("Fake")
             self.ui.cGPIB.currentIndexChanged.disconnect(self.openSPEX)
@@ -133,7 +143,28 @@ class SPEXWin(QtGui.QMainWindow):
         
         
         self.settings = s
-    
+
+    def initSPEX(self):
+        """
+        Input the exact value read on the SPEX. The subtraction
+        is done automatically
+        :return:
+        """
+        newWN, ok= QtGui.QInputDialog.getDouble(
+            self, "Current SPEX Wavenumber",
+            "Current SPEX Value (exact value)",
+            13000, 11000, 15000
+        )
+        if not ok: return
+        self.SPEX.initBoot(newWN)
+        if self.parent is not None:
+            self.parent.openSPEX()
+            self.ui.sbGoto.setValue(
+                self.SPEX.currentPositionWN
+            )
+        else:
+            self.openSPEX()
+
     def changeWN(self):
         self.ui.sbGoto.setEnabled(False)
         self.ui.bGo.setEnabled(False)
