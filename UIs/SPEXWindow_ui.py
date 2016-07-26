@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:\Users\dvalovcin\Documents\GitHub\SPEXSidebands-fuzzy\UIs\SPEXWindow.ui'
+# Form implementation generated from reading ui file 'SPEXWindow.ui'
 #
-# Created by: PyQt4 UI code generator 4.11.4
+# Created: Sun May 22 09:20:53 2016
+#      by: PyQt4 UI code generator 4.11.3
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -44,6 +45,19 @@ class Ui_SPEXController(object):
         self.bGo = QtGui.QPushButton(self.centralwidget)
         self.bGo.setObjectName(_fromUtf8("bGo"))
         self.horizontalLayout.addWidget(self.bGo)
+        self.lSBO = QtGui.QLabel(self.centralwidget)
+        self.lSBO.setObjectName(_fromUtf8("lSBO"))
+        self.horizontalLayout.addWidget(self.lSBO)
+        self.sbSB = QtGui.QSpinBox(self.centralwidget)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.sbSB.sizePolicy().hasHeightForWidth())
+        self.sbSB.setSizePolicy(sizePolicy)
+        self.sbSB.setMinimum(-100)
+        self.sbSB.setMaximum(100)
+        self.sbSB.setObjectName(_fromUtf8("sbSB"))
+        self.horizontalLayout.addWidget(self.sbSB)
         self.verticalLayout.addLayout(self.horizontalLayout)
         self.horizontalLayout_2 = QtGui.QHBoxLayout()
         self.horizontalLayout_2.setObjectName(_fromUtf8("horizontalLayout_2"))
@@ -61,7 +75,7 @@ class Ui_SPEXController(object):
         self.verticalLayout.addLayout(self.horizontalLayout_2)
         SPEXController.setCentralWidget(self.centralwidget)
         self.menubar = QtGui.QMenuBar(SPEXController)
-        self.menubar.setGeometry(QtCore.QRect(0, 0, 301, 21))
+        self.menubar.setGeometry(QtCore.QRect(0, 0, 394, 22))
         self.menubar.setObjectName(_fromUtf8("menubar"))
         self.menuFile = QtGui.QMenu(self.menubar)
         self.menuFile.setObjectName(_fromUtf8("menuFile"))
@@ -81,6 +95,7 @@ class Ui_SPEXController(object):
         SPEXController.setWindowTitle(_translate("SPEXController", "SPEX Control Window", None))
         self.label.setText(_translate("SPEXController", "Goto Wavenumber:", None))
         self.bGo.setText(_translate("SPEXController", "Go", None))
+        self.lSBO.setText(_translate("SPEXController", "SB Order", None))
         self.label_2.setText(_translate("SPEXController", "SPEX GPIB:", None))
         self.bDone.setText(_translate("SPEXController", "OK", None))
         self.menuFile.setTitle(_translate("SPEXController", "File", None))
