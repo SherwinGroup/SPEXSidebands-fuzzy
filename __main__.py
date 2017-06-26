@@ -22,7 +22,8 @@ except Exception as e:
     raise IOError('Instrument library not found. Often placed in another directory')
 from InstsAndQt.PyroOscope.OscWid import OscWid
 from InstsAndQt.customQt import TempThread
-import motordriver as md
+# import motordriver as md
+import InstsAndQt.MotorDriver as md
 from SPEXWin import SPEXWin
 from UIs.MainWindow_ui import Ui_MainWindow
 from UIs.Settings_ui import Ui_Settings
@@ -75,6 +76,7 @@ in the file NDfilter_stats.
 """
 # Text file with the three filters [Wavelength (nm), Mr. Blue, Mr. White, Three sisters] raw transmission values
 ndFilters_trans = np.loadtxt('NDfilter_stats.txt', comments='#', delimiter=',')
+
 # The linear interpolation function of the three ND filters we use
 mrBlue = interp1d(ndFilters_trans[:, 0], ndFilters_trans[:, 1]) # NE20A filter with blue 'A'
 mrWhite = interp1d(ndFilters_trans[:, 0], ndFilters_trans[:, 2]) # NE20A filter with no coloring
@@ -184,7 +186,7 @@ class SPEXScanWin(QtGui.QMainWindow):
     # for updating arbitrary elements. First arg is callable,
     # second is args
     sigUpdateGuiElement = QtCore.pyqtSignal(object, object)
-    
+
     #Thread which handles polling the oscilloscope
     scopeCollectionThread = None
     #Thread which handles scanning the SPEX and updating data, etc
@@ -227,11 +229,11 @@ class SPEXScanWin(QtGui.QMainWindow):
         self.openAgi()
         self.SPEXWindow = None
         self.pulseWidth = 2e-6
-        
+
     def initUI(self):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
-        
+
         #Initialize the plots (see imports at top for how to set the colors)
 
         self.pPMT = self.ui.gSignal.plot(pen='k')
@@ -287,10 +289,10 @@ class SPEXScanWin(QtGui.QMainWindow):
         for i in lrtb:
             for j in i:
                 j.textAccepted.connect(self.updateLinearRegionsFromText)
-        
+
         self.linearRegionTextBoxes = lrtb
-        
-        
+
+
         self.ui.bChooseDirectory.clicked.connect(self.updateSaveLoc)
         self.ui.bQuickStart.clicked.connect(self.quickStartScan)
         self.ui.bStart.clicked.connect(self.startScan)
@@ -317,7 +319,7 @@ class SPEXScanWin(QtGui.QMainWindow):
         self.tbcPyroFP = QtGui.QLabel()
         self.tbcPyroCD = QtGui.QLabel()
         self.tbcPMSG = QtGui.QLabel()
-        
+
         self.ui.statusbar.addPermanentWidget(self.tGeneralSB)
         self.ui.statusbar.addPermanentWidget(self.tbcPyroFP, 1)
         self.ui.statusbar.addPermanentWidget(self.tbcPyroCD, 1)
@@ -326,8 +328,8 @@ class SPEXScanWin(QtGui.QMainWindow):
         # self.ui.splitter_2.setStretchFactor(0, 1)
         # self.ui.splitter_2.setStretchFactor(1, 1)
 
-        
-        
+
+
         self.show()
     def initSettings(self):
         #Initializes all the settings for the window in one tidy location,
@@ -344,7 +346,7 @@ class SPEXScanWin(QtGui.QMainWindow):
         s['sGPIB'] = 'GPIB0::4::INSTR' if 'GPIB0::4::INSTR' in s['GPIBChoices'] else "Fake"#'GPIB0::4::INSTR' #GPIB of the SPEX
         s['pyCh'] = 3  #Osc channel for the pyro
         s['pmCh'] = 2  #osc channel for the pmt
-        
+
         #saving settings
         s['saveLocation'] = '.'
         s['saveName'] = ''
@@ -361,13 +363,13 @@ class SPEXScanWin(QtGui.QMainWindow):
 
         s["autoSBN"] = 2 # automatic sideband, desired sb
         s["autoSBW"] = 4  # automatic SB, desired width
-        
+
         #scan settings
         s['startWN'] = 0 #Starting wavenumber
         s['stepWN'] = -1 #how many wavenumbers to steop by
         s['endWN'] = 0 #Ending wavenumber
         s['ave'] = 10 #How many values to take an average of
-        
+
         #running flags
         #Pausing causes the oscilloscope reading loop to wait until we are unpaused
         s['notPaused'] = False # start paused
@@ -380,7 +382,7 @@ class SPEXScanWin(QtGui.QMainWindow):
         #is moving between wavenumbers, the scope will still be collecting data
         #and we don't want to falsely collect data during these times
         s['collectingData'] = False
-        
+
         #data
         s['pcData'] = None # photon counted data
         s['pmData'] = None
@@ -394,7 +396,7 @@ class SPEXScanWin(QtGui.QMainWindow):
         s["doPC"] = False
         s["PCThreshold"] = 0
         s["thzSweepPoints"] = []
-        
+
         #boundaries for boxcar integration
         #bc[py|pm] -> boxcar[Pyro|PMT]
         #bg -> background
@@ -408,9 +410,9 @@ class SPEXScanWin(QtGui.QMainWindow):
         s['bcpyCD'] = [0, 0]
         s['bcpmBG'] = [0, 0]
         s['bcpmSB'] = [0, 0]
-        
-        
-        
+
+
+
         self.settings = s
 
     def abortScan(self):
@@ -427,7 +429,7 @@ class SPEXScanWin(QtGui.QMainWindow):
         self.settings["fel_power"] = str(self.oscWidget.ui.tFELP.text())
         self.settings["fel_lambda"] = str(self.oscWidget.ui.tFELFreq.text())
         self.settings["fel_reprate"] = str(self.oscWidget.ui.tFELRR.text())
-        
+
         #need to pass a copy of the settings. Otherwise it passes the reference,
         #thus changing the values and we're unable to see whether things have changed.
         newSettings, ok = SettingsDialog.getSettings(self, copy.copy(self.settings))
@@ -448,12 +450,12 @@ class SPEXScanWin(QtGui.QMainWindow):
             self.ui.tSidebandNumber.setText(str(newSettings["autoSBN"]))
 
         #Need to check to see if the GPIB values changed so we can update them.
-        #The opening procedure opens a fake isntrument if things go wrong, which 
+        #The opening procedure opens a fake isntrument if things go wrong, which
         #means we can't assign the settings dict after calling openKeith() as that would
         #potentially overwrite if we needed to open a fake instr.
         #
         #We get the old values before updating the settings. Th
-        
+
         oldaGPIB = self.settings['aGPIB']
         oldsGPIB = self.settings['sGPIB']
 
@@ -485,12 +487,12 @@ class SPEXScanWin(QtGui.QMainWindow):
             self.settings['sGPIB'] = newSettings['sGPIB']
             self.openSPEX()
 
-        
+
         #enforce the correct sign
         self.settings['stepWN'] = np.sign(self.settings['endWN']-self.settings['startWN'])*np.abs(
                     self.settings['stepWN'])
         self.saveSettings()
-            
+
     def openSPEXWindow(self):
         if self.SPEXWindow is None:
             self.SPEXWindow = SPEXWin(SPEXInfo = self.SPEX, parent=self)
@@ -504,7 +506,7 @@ class SPEXScanWin(QtGui.QMainWindow):
             print 'Error opening SPEX. Adding Fake'
             self.settings['sGPIB'] = 'Fake'
             self.SPEX = SPEX(self.settings['sGPIB'])
-    
+
     def openAgi(self):
         #Stop collection if it's happening
         self.settings['collectingScope'] = False
@@ -512,7 +514,7 @@ class SPEXScanWin(QtGui.QMainWindow):
         print 'isPaused', isPaused
         if isPaused:
             self.togglePause(False)
-        try: 
+        try:
             self.scopeCollectionThread.join()
         except:
             pass
@@ -524,7 +526,7 @@ class SPEXScanWin(QtGui.QMainWindow):
             print 'Error opening Agilent. Adding Fake'
             self.settings['aGPIB'] = 'Fake'
             self.Agil = Agilent6000(self.settings['aGPIB'])
-            
+
         # self.Agil.setTrigger()
         self.settings['collectingScope'] = True
 
@@ -537,11 +539,11 @@ class SPEXScanWin(QtGui.QMainWindow):
         self.Agil.write(":WAV:POIN 10000")
         if isPaused:
             self.togglePause(True)
-            
+
         self.scopeCollectionThread = threading.Thread(target = self.collectScopeLoop)
         self.scopeCollectionThread.start()
 
-            
+
     def updateBoxcarTexts(self, v1=0, v2=0, v3=0):
         return
         v1 = '{:.3g}'.format(v1)
@@ -550,7 +552,7 @@ class SPEXScanWin(QtGui.QMainWindow):
         self.tbcPyroFP.setText('PyFP Box: ' + v1)
         self.tbcPyroCD.setText('PyCD Box:' + v2)
         self.tbcPMSG.setText('PmSG Box: ' + v3)
-        
+
     def togglePause(self, val):
         #True to pause
         #False to unpause
@@ -560,13 +562,13 @@ class SPEXScanWin(QtGui.QMainWindow):
                 self.pausingLoop.exit()
             except:
                 pass
-        
+
     def integrateData(self, data):
         dt = np.diff(data[:2,0])[0]
 
         pmBGbounds = self.boxcarRegions[0].getRegion()
         pmBGidx = self.findIndices(pmBGbounds, data[:,0])
-        
+
         pmSGbounds = self.boxcarRegions[1].getRegion()
         pmSGidx = self.findIndices(pmSGbounds, data[:,0])
 
@@ -1333,7 +1335,7 @@ class SPEXScanWin(QtGui.QMainWindow):
             self.pausingLoop.exit()
         except:
             pass
-        
+
         try:
             self.waitingForDataLoop.exit()
         except:
@@ -1342,14 +1344,14 @@ class SPEXScanWin(QtGui.QMainWindow):
             self.scanRunningThread.join()
         except:
             pass
-        
+
         #Stop the runnign thread for collecting from scope
         try:
             self.scopeCollectionThread.join()
         except:
             pass
-        
-        
+
+
         #Restart the scope to trigger as normal.
         self.Agil.write(':RUN')
         self.close()
@@ -1475,7 +1477,7 @@ class SettingsDialog(QtGui.QDialog):
         self.ui.tNIRLam.textAccepted.connect(self.calcNIRLam)
         # But still want to iterate over later
         self.calcSBBoxes.append(self.ui.tNIRLam)
-        
+
     def initUI(self, settings):
         self.ui = Ui_Settings()
         self.ui.setupUi(self)
@@ -1492,7 +1494,7 @@ class SettingsDialog(QtGui.QDialog):
         self.ui.tEndWN.setText(str(settings['endWN']))
         self.ui.tAverages.setText(str(settings['ave']))
 
-        
+
         self.ui.cPyroCh.insertItems(0, ['1', '2', '3', '4'])
         self.ui.cPyroCh.setCurrentIndex(settings['pyCh']-1)
         self.ui.cPMCh.insertItems(0, ['1', '2', '3', '4'])
@@ -1500,7 +1502,7 @@ class SettingsDialog(QtGui.QDialog):
 
         self.ui.tGotoBound.setText(str(settings["autoSBW"]))
         self.ui.tGotoSB.setText(str(settings["autoSBN"]))
-        
+
         self.ui.tNIRP.setText(str(settings['nir_power']))
         self.ui.tNIRLam.setText(str(settings['nir_lambda']))
         self.ui.cbPMHV.setCurrentIndex(
@@ -1527,7 +1529,7 @@ class SettingsDialog(QtGui.QDialog):
         self.ui.cbPC.setEnabled(True)
         self.ui.cbPC.setChecked(settings["doPC"])
 
-        
+
         if settings['runningScan']:
             self.ui.tAverages.setEnabled(False)
             self.ui.tStartWN.setEnabled(False)
@@ -1653,5 +1655,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
