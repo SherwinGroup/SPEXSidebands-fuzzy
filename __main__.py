@@ -536,7 +536,7 @@ class SPEXScanWin(QtGui.QMainWindow):
         # Maybe this can eventually be specified somewhere in the GUI?
         self.Agil.write("STOP")
         self.Agil.write(":WAV:POIN:MODE MAX")
-        self.Agil.write(":WAV:POIN 10000")
+        self.Agil.write(":WAV:POIN 50000")
         if isPaused:
             self.togglePause(True)
 
@@ -1181,13 +1181,20 @@ class SPEXScanWin(QtGui.QMainWindow):
         s["boxcar_pyroSignal"] = self.oscWidget.boxcarRegions[2].getRegion()
         s["boxcar_PMTBackground"] = self.boxcarRegions[0].getRegion()
         s["boxcar_PMTSignal"] = self.boxcarRegions[1].getRegion()
-        s["date"] = time.strftime('%x')
+        s["date"] = time.strftime('%x %X%p')
 
         if self.settings["saveWaveforms"]:
             s["SPEXFreq"] = self.settings['endWN']
             s["numAve"] = self.settings['ave']
-            if self.settings["doPC"]:
-                s["PCThreshold"] = self.ui.tPCThreshold.value()
+
+        s["pCThreshold"] = None
+        s["photon counted"] = False
+        # Ratio needed to multiply PC data by to scale it to the other data
+        # changes on each data set(?). Placeholder for analysis
+        s["pc ratio"] = -1
+        if self.settings["doPC"]:
+            s["pCThreshold"] = self.ui.tPCThreshold.value()
+            s["photon counted"] = True
 
         s.update(self.oscWidget.getExposureResults())
         st = str(self.ui.tSidebandNumber.text()) + "\n"
