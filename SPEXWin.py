@@ -7,7 +7,7 @@ Created on Tue Feb 03 12:53:22 2015
 
 import numpy as np
 from PyQt4 import QtGui, QtCore
-from UIs.SPEXWindow_ui import Ui_SPEXController
+from .UIs.SPEXWindow_ui import Ui_SPEXController
 import threading
 import time
 from InstsAndQt.Instruments import SPEX
@@ -17,7 +17,7 @@ pg.setConfigOption('foreground', 'k')
 try:
     import visa
 except:
-    print 'Error. VISA library not installed'
+    print('Error. VISA library not installed')
 
 import logging
 log = logging.getLogger("SPEX")
@@ -111,15 +111,15 @@ class SPEXWin(QtGui.QMainWindow):
             self.SPEX = SPEX(str(self.ui.cGPIB.currentText()))
             pos = self.SPEX.stepsToWN(self.SPEX.curStep())
             self.ui.sbGoto.setValue(pos)
-            print 'SPEX opened'
+            print('SPEX opened')
         except AttributeError:
             # Don't reset open instrument if
             # you failed from a boot error
             if self.SPEX.whereAmI() == 'B':
-                print "SPEX not initialized"
+                print("SPEX not initialized")
                 return
         except Exception as e:
-            print 'Error opening SPEX.'
+            print('Error opening SPEX.')
             log.exception("Couldn't init")
 
 
@@ -205,7 +205,7 @@ class SPEXWin(QtGui.QMainWindow):
         
     
     def closeEvent(self, event):
-        print 'Close event handling'
+        print('Close event handling')
         #A little hacky way to let the main window know that this window has closed
         #the legitimate way to do it would be to emit a signal and have the main window
         #connect the signal, incase this class ever gets used to be called by a class

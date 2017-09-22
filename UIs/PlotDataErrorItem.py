@@ -1,9 +1,9 @@
-from __future__ import print_function
+
 import pyqtgraph as pg
 import numpy as np
 import sys
 from PyQt4 import QtCore, QtGui
-from clickablePlotSettings_ui import Ui_LineSettingsDialog
+from .clickablePlotSettings_ui import Ui_LineSettingsDialog
 
 config_options = {
     "selectionThickness": 3

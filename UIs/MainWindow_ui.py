@@ -260,6 +260,6 @@ class Ui_MainWindow(object):
         self.mSpexOpen.setText(_translate("MainWindow", "Open SPEX Settings", None))
 
 from InstsAndQt.customQt import DoubleYPlot, QFNumberEdit
-from clickablePlotWidget import ClickablePlotWidget
+from .clickablePlotWidget import ClickablePlotWidget
 from pyqtgraph import PlotWidget
-import resources_rc
+from . import resources_rc

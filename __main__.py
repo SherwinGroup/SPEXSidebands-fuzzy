@@ -24,17 +24,17 @@ from InstsAndQt.PyroOscope.OscWid import OscWid
 from InstsAndQt.customQt import TempThread
 # import motordriver as md
 import InstsAndQt.MotorDriver as md
-from SPEXWin import SPEXWin
-from UIs.MainWindow_ui import Ui_MainWindow
-from UIs.Settings_ui import Ui_Settings
-from UIs.QuickSettings_ui import Ui_QuickSettings
+from .SPEXWin import SPEXWin
+from .UIs.MainWindow_ui import Ui_MainWindow
+from .UIs.Settings_ui import Ui_Settings
+from .UIs.QuickSettings_ui import Ui_QuickSettings
 import pyqtgraph as pg
 pg.setConfigOption('background', 'w')
 pg.setConfigOption('foreground', 'k')
 try:
     import visa
 except:
-    print 'Error. VISA library not installed'
+    print('Error. VISA library not installed')
 
 # http://stackoverflow.com/questions/1551605/how-to-set-applications-taskbar-icon-in-windows-7/1552105#1552105
 # Don't want python app window to clump
@@ -501,9 +501,9 @@ class SPEXScanWin(QtGui.QMainWindow):
     def openSPEX(self):
         try:
             self.SPEX = SPEX(self.settings['sGPIB'])
-            print 'SPEX opened'
+            print('SPEX opened')
         except:
-            print 'Error opening SPEX. Adding Fake'
+            print('Error opening SPEX. Adding Fake')
             self.settings['sGPIB'] = 'Fake'
             self.SPEX = SPEX(self.settings['sGPIB'])
 
@@ -511,7 +511,7 @@ class SPEXScanWin(QtGui.QMainWindow):
         #Stop collection if it's happening
         self.settings['collectingScope'] = False
         isPaused = not self.settings['notPaused']
-        print 'isPaused', isPaused
+        print('isPaused', isPaused)
         if isPaused:
             self.togglePause(False)
         try:
@@ -521,9 +521,9 @@ class SPEXScanWin(QtGui.QMainWindow):
         #Try to connect it
         try:
             self.Agil = Agilent6000(self.settings['aGPIB'])
-            print 'Agilent opened'
+            print('Agilent opened')
         except:
-            print 'Error opening Agilent. Adding Fake'
+            print('Error opening Agilent. Adding Fake')
             self.settings['aGPIB'] = 'Fake'
             self.Agil = Agilent6000(self.settings['aGPIB'])
 
@@ -677,7 +677,7 @@ class SPEXScanWin(QtGui.QMainWindow):
         # Update the sideband textbox if you used the
         # autocalculator to move to a new one.
 
-        print self.settings["autoSBN"], sets["autoSBN"]
+        print(self.settings["autoSBN"], sets["autoSBN"])
 
         if not self.settings["autoSBN"] == sets["autoSBN"]:
             self.ui.tSidebandNumber.setText(str(sets["autoSBN"]))
@@ -830,21 +830,21 @@ class SPEXScanWin(QtGui.QMainWindow):
             # Set the array of data
             # This separates it so all of the data for one
             # wavenumber is in one row, and the rest are nan
-            newData[wnIdx, range(len(data[:,3]))] = data[:,3]
+            newData[wnIdx, list(range(len(data[:,3])))] = data[:,3]
             # sum over them, ignoring the nan values
             newVal = np.nanmean(newData, axis=1)
             errs = np.nanstd(newData, axis=1)/np.sqrt(
                 np.sum(1-np.isnan(newData), axis=1)
             )
             label = self.getSeries() + '_' + str(self.ui.tSidebandNumber.text())
-            col = plotColors.next()
+            col = next(plotColors)
             self.ui.gScan.errorbars(x=wn, y=newVal, errorbars=errs, pen=col, name=label)
         else:
             data = self.settings['allSignalWaveforms']
             time = data[:,0]
             data = data[:, 1:].mean(axis=1)
             label = self.getSeries() + '_' + str(self.ui.tSidebandNumber.text())
-            col = plotColors.next()
+            col = next(plotColors)
             self.ui.gScan.plot(x=time, y=data, name=label, pen=col)
         self.statusSig.emit(['Done', 3000])
 
@@ -1054,7 +1054,7 @@ class SPEXScanWin(QtGui.QMainWindow):
             # Set the array of data
             # This separates it so all of the data for one
             # wavenumber is in one row, and the rest are nan
-            newData[wnIdx, range(len(data[:,3]))] = data[:,3]
+            newData[wnIdx, list(range(len(data[:,3])))] = data[:,3]
             # sum over them, ignoring the nan values
             newVal = np.nanmean(newData, axis=1)
         else:
@@ -1327,7 +1327,7 @@ class SPEXScanWin(QtGui.QMainWindow):
 
     def closeEvent(self, event):
         self.saveSettings()
-        print 'Close event handling'
+        print('Close event handling')
         self.settings['collectingScope'] = False
         self.settings['runningScan'] = False
         #Stop pausing
@@ -1631,7 +1631,7 @@ class MessageDialog(QtGui.QDialog):
         try:
             dialogList.remove(self)
         except Exception as E:
-            print "ERror removing from list, ",E
+            print("ERror removing from list, ",E)
 
         super(MessageDialog, self).close()
 

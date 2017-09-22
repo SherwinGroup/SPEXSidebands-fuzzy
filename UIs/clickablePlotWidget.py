@@ -1,10 +1,10 @@
-from __future__ import print_function
+
 import pyqtgraph as pg
 import numpy as np
 import sys
 from PyQt4 import QtCore, QtGui
-from clickablePlotSettings_ui import Ui_LineSettingsDialog
-from PlotDataErrorItem import *
+from .clickablePlotSettings_ui import Ui_LineSettingsDialog
+from .PlotDataErrorItem import *
 
 config_options = {
     "selectionThickness": 3
@@ -204,7 +204,7 @@ class CurveItemSettings(QtGui.QDialog):
         self.handlecurrentItemChanged(initialListItem)
 
     def getCurveFromItem(self, item):
-        for k, v in self.listViewCurveItems.items():
+        for k, v in list(self.listViewCurveItems.items()):
             if v is item: return k
 
     def handlecurrentItemChanged(self, *args, **kwargs):

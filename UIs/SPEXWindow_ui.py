@@ -102,4 +102,4 @@ class Ui_SPEXController(object):
         self.actionInitiate_SPEX.setText(_translate("SPEXController", "Initiate SPEX...", None))
 
 from pyqtgraph import SpinBox
-import resources_rc
+from . import resources_rc
