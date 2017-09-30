@@ -7,84 +7,78 @@
 #
 # WARNING! All changes made in this file will be lost!
 
-from PyQt4 import QtCore, QtGui
+from PyQt5 import QtCore, QtGui, QtWidgets
 
 try:
-    _fromUtf8 = QtCore.QString.fromUtf8
-except AttributeError:
-    def _fromUtf8(s):
-        return s
-
-try:
-    _encoding = QtGui.QApplication.UnicodeUTF8
+    _encoding = QtWidgets.QApplication.UnicodeUTF8
     def _translate(context, text, disambig):
-        return QtGui.QApplication.translate(context, text, disambig, _encoding)
+        return QtCore.QCoreApplication.translate(context, text, disambig, _encoding)
 except AttributeError:
     def _translate(context, text, disambig):
-        return QtGui.QApplication.translate(context, text, disambig)
+        return QtCore.QCoreApplication.translate(context, text, disambig)
 
 class Ui_SPEXController(object):
     def setupUi(self, SPEXController):
-        SPEXController.setObjectName(_fromUtf8("SPEXController"))
+        SPEXController.setObjectName("SPEXController")
         SPEXController.resize(301, 115)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap(_fromUtf8(":/test/SPEXIcon.jpg")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(QtGui.QPixmap(":/test/SPEXIcon.jpg"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         SPEXController.setWindowIcon(icon)
-        self.centralwidget = QtGui.QWidget(SPEXController)
-        self.centralwidget.setObjectName(_fromUtf8("centralwidget"))
-        self.verticalLayout = QtGui.QVBoxLayout(self.centralwidget)
-        self.verticalLayout.setObjectName(_fromUtf8("verticalLayout"))
-        self.horizontalLayout = QtGui.QHBoxLayout()
-        self.horizontalLayout.setObjectName(_fromUtf8("horizontalLayout"))
-        self.label = QtGui.QLabel(self.centralwidget)
-        self.label.setObjectName(_fromUtf8("label"))
+        self.centralwidget = QtWidgets.QWidget(SPEXController)
+        self.centralwidget.setObjectName("centralwidget")
+        self.verticalLayout = QtWidgets.QVBoxLayout(self.centralwidget)
+        self.verticalLayout.setObjectName("verticalLayout")
+        self.horizontalLayout = QtWidgets.QHBoxLayout()
+        self.horizontalLayout.setObjectName("horizontalLayout")
+        self.label = QtWidgets.QLabel(self.centralwidget)
+        self.label.setObjectName("label")
         self.horizontalLayout.addWidget(self.label)
         self.sbGoto = SpinBox(self.centralwidget)
-        self.sbGoto.setObjectName(_fromUtf8("sbGoto"))
+        self.sbGoto.setObjectName("sbGoto")
         self.horizontalLayout.addWidget(self.sbGoto)
-        self.bGo = QtGui.QPushButton(self.centralwidget)
-        self.bGo.setObjectName(_fromUtf8("bGo"))
+        self.bGo = QtWidgets.QPushButton(self.centralwidget)
+        self.bGo.setObjectName("bGo")
         self.horizontalLayout.addWidget(self.bGo)
-        self.lSBO = QtGui.QLabel(self.centralwidget)
-        self.lSBO.setObjectName(_fromUtf8("lSBO"))
+        self.lSBO = QtWidgets.QLabel(self.centralwidget)
+        self.lSBO.setObjectName("lSBO")
         self.horizontalLayout.addWidget(self.lSBO)
-        self.sbSB = QtGui.QSpinBox(self.centralwidget)
-        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Fixed)
+        self.sbSB = QtWidgets.QSpinBox(self.centralwidget)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.sbSB.sizePolicy().hasHeightForWidth())
         self.sbSB.setSizePolicy(sizePolicy)
         self.sbSB.setMinimum(-100)
         self.sbSB.setMaximum(100)
-        self.sbSB.setObjectName(_fromUtf8("sbSB"))
+        self.sbSB.setObjectName("sbSB")
         self.horizontalLayout.addWidget(self.sbSB)
         self.verticalLayout.addLayout(self.horizontalLayout)
-        self.horizontalLayout_2 = QtGui.QHBoxLayout()
-        self.horizontalLayout_2.setObjectName(_fromUtf8("horizontalLayout_2"))
-        self.label_2 = QtGui.QLabel(self.centralwidget)
-        self.label_2.setObjectName(_fromUtf8("label_2"))
+        self.horizontalLayout_2 = QtWidgets.QHBoxLayout()
+        self.horizontalLayout_2.setObjectName("horizontalLayout_2")
+        self.label_2 = QtWidgets.QLabel(self.centralwidget)
+        self.label_2.setObjectName("label_2")
         self.horizontalLayout_2.addWidget(self.label_2)
-        self.cGPIB = QtGui.QComboBox(self.centralwidget)
-        self.cGPIB.setObjectName(_fromUtf8("cGPIB"))
+        self.cGPIB = QtWidgets.QComboBox(self.centralwidget)
+        self.cGPIB.setObjectName("cGPIB")
         self.horizontalLayout_2.addWidget(self.cGPIB)
-        spacerItem = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
+        spacerItem = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.horizontalLayout_2.addItem(spacerItem)
-        self.bDone = QtGui.QPushButton(self.centralwidget)
-        self.bDone.setObjectName(_fromUtf8("bDone"))
+        self.bDone = QtWidgets.QPushButton(self.centralwidget)
+        self.bDone.setObjectName("bDone")
         self.horizontalLayout_2.addWidget(self.bDone)
         self.verticalLayout.addLayout(self.horizontalLayout_2)
         SPEXController.setCentralWidget(self.centralwidget)
-        self.menubar = QtGui.QMenuBar(SPEXController)
+        self.menubar = QtWidgets.QMenuBar(SPEXController)
         self.menubar.setGeometry(QtCore.QRect(0, 0, 394, 22))
-        self.menubar.setObjectName(_fromUtf8("menubar"))
-        self.menuFile = QtGui.QMenu(self.menubar)
-        self.menuFile.setObjectName(_fromUtf8("menuFile"))
+        self.menubar.setObjectName("menubar")
+        self.menuFile = QtWidgets.QMenu(self.menubar)
+        self.menuFile.setObjectName("menuFile")
         SPEXController.setMenuBar(self.menubar)
-        self.statusbar = QtGui.QStatusBar(SPEXController)
-        self.statusbar.setObjectName(_fromUtf8("statusbar"))
+        self.statusbar = QtWidgets.QStatusBar(SPEXController)
+        self.statusbar.setObjectName("statusbar")
         SPEXController.setStatusBar(self.statusbar)
-        self.actionInitiate_SPEX = QtGui.QAction(SPEXController)
-        self.actionInitiate_SPEX.setObjectName(_fromUtf8("actionInitiate_SPEX"))
+        self.actionInitiate_SPEX = QtWidgets.QAction(SPEXController)
+        self.actionInitiate_SPEX.setObjectName("actionInitiate_SPEX")
         self.menuFile.addAction(self.actionInitiate_SPEX)
         self.menubar.addAction(self.menuFile.menuAction())
 
@@ -102,4 +96,6 @@ class Ui_SPEXController(object):
         self.actionInitiate_SPEX.setText(_translate("SPEXController", "Initiate SPEX...", None))
 
 from pyqtgraph import SpinBox
+
 from . import resources_rc
+

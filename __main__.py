@@ -7,7 +7,7 @@ Created on Tue Feb 03 12:53:22 2015
 import numpy as np
 import scipy.integrate as spi
 from scipy.interpolate import interp1d
-from PyQt4 import QtGui, QtCore
+from PyQt5 import QtCore, QtGui, QtWidgets
 import threading
 import json
 import glob
@@ -24,15 +24,19 @@ from InstsAndQt.PyroOscope.OscWid import OscWid
 from InstsAndQt.customQt import TempThread
 # import motordriver as md
 import InstsAndQt.MotorDriver as md
-from .SPEXWin import SPEXWin
-from .UIs.MainWindow_ui import Ui_MainWindow
-from .UIs.Settings_ui import Ui_Settings
-from .UIs.QuickSettings_ui import Ui_QuickSettings
 import pyqtgraph as pg
+
+from SPEXWin import SPEXWin
+from UIs.MainWindow_ui import Ui_MainWindow
+from UIs.Settings_ui import Ui_Settings
+from UIs.QuickSettings_ui import Ui_QuickSettings
+
 pg.setConfigOption('background', 'w')
 pg.setConfigOption('foreground', 'k')
 try:
     import visa
+
+
 except:
     print('Error. VISA library not installed')
 
@@ -40,12 +44,16 @@ except:
 # Don't want python app window to clump
 # with the other windows
 import ctypes, os
+
+
 if os.name is not "posix":
     myappid = 'Sherwin.Group.SPEXSidebands.100' # arbitrary string
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
 
 import logging
+
+
 log = logging.getLogger("SPEX")
 log.setLevel(logging.DEBUG)
 handler1 = logging.StreamHandler()
@@ -102,6 +110,8 @@ plotColors = [pg.intColor(i, hues = 20,
                           sat = 255) for i in range(20)]
 
 import itertools
+
+
 plotColors = itertools.cycle(plotColors)
 
 
@@ -153,7 +163,7 @@ def getPhotonCountedWaveform(wf, cutoff=20):
 
     return wfOrig
 
-class SPEXScanWin(QtGui.QMainWindow):
+class SPEXScanWin(QtWidgets.QMainWindow):
     #emits when oscilloscope is done taking data so that
     #the data collecting thread knows it's ready to processes
     updateDataSig = QtCore.pyqtSignal()
@@ -315,10 +325,10 @@ class SPEXScanWin(QtGui.QMainWindow):
         self.ui.tSeries.setText(self.settings['seriesName'])
         self.ui.tSidebandNumber.setText(str(self.settings['autoSBN']))
 
-        self.tGeneralSB = QtGui.QLabel()
-        self.tbcPyroFP = QtGui.QLabel()
-        self.tbcPyroCD = QtGui.QLabel()
-        self.tbcPMSG = QtGui.QLabel()
+        self.tGeneralSB = QtWidgets.QLabel()
+        self.tbcPyroFP = QtWidgets.QLabel()
+        self.tbcPyroCD = QtWidgets.QLabel()
+        self.tbcPMSG = QtWidgets.QLabel()
 
         self.ui.statusbar.addPermanentWidget(self.tGeneralSB)
         self.ui.statusbar.addPermanentWidget(self.tbcPyroFP, 1)
@@ -338,12 +348,17 @@ class SPEXScanWin(QtGui.QMainWindow):
         s = dict()
         #Communication settings
         try:
-            s['GPIBChoices'] = [i.encode("ascii") for i in visa.ResourceManager().list_resources()]
+            s['GPIBChoices'] = [str(i) for i in visa.ResourceManager().list_resources()]
         except:
             s['GPIBChoices'] = ["a", "b", "c"]
         s['GPIBChoices'].append("Fake")
-        s['aGPIB'] = 'USB0::0x0957::0x1734::MY44007041::INSTR' if 'USB0::0x0957::0x1734::MY44007041::INSTR' in s['GPIBChoices'] else "Fake"#GPIB of the agilent
-        s['sGPIB'] = 'GPIB0::4::INSTR' if 'GPIB0::4::INSTR' in s['GPIBChoices'] else "Fake"#'GPIB0::4::INSTR' #GPIB of the SPEX
+        agilGPIB = 'USB0::0x0957::0x1734::MY44007041::INSTR'
+        s['aGPIB'] = agilGPIB if agilGPIB in s["GPIBChoices"] else "Fake"
+
+        specGPIB = 'GPIB0::4::INSTR'
+        s['SGPIB'] = specGPIB if specGPIB in s["GPIBChoices"] else "Fake"
+
+
         s['pyCh'] = 3  #Osc channel for the pyro
         s['pmCh'] = 2  #osc channel for the pmt
 
@@ -397,6 +412,12 @@ class SPEXScanWin(QtGui.QMainWindow):
         s["PCThreshold"] = 0
         s["thzSweepPoints"] = []
 
+        # Number of points the oscilliscope should digitize and
+        # send to the computer. Set to 0 to not change it
+        s["agilPoints"] = 10000
+        s["agilTrigSrc"] = 4
+        s["agilTrigLvl"] = 1.5
+
         #boundaries for boxcar integration
         #bc[py|pm] -> boxcar[Pyro|PMT]
         #bg -> background
@@ -420,7 +441,7 @@ class SPEXScanWin(QtGui.QMainWindow):
     def launchSettings(self):
         try:
             res = list(visa.ResourceManager().list_resources())
-            res = [i.encode('ascii') for i in res]
+            res = [str(i) for i in res]
         except:
             self.statusSig.emit(['Error loading GPIB list', 5000])
             res = ['a', 'b','c']
@@ -872,7 +893,7 @@ class SPEXScanWin(QtGui.QMainWindow):
     def startTHzPowerSweep(self, val):
         if not val: #unchecking
             return
-        st, ok = QtGui.QInputDialog.getText(self,
+        st, ok = QtWidgets.QInputDialog.getText(self,
                     "Desired Angles",
                     "Enter angles in deg separated by commas",
                     text=",".join(map(str, self.settings["thzSweepPoints"])))
@@ -911,7 +932,7 @@ class SPEXScanWin(QtGui.QMainWindow):
             boxcarRegions = self.boxcarRegions # the ones for the PMT
             try:
                 length = len(self.settings['pmData'])
-                point = self.settings['pmData'][length/2,0]
+                point = self.settings['pmData'][length//2,0]
             except:
                 return
 
@@ -1138,7 +1159,7 @@ class SPEXScanWin(QtGui.QMainWindow):
             fmt = fmt)
 
     def updateSaveLoc(self):
-        fname = str(QtGui.QFileDialog.getExistingDirectory(self, "Choose File Directory...",directory=self.settings['saveLocation']))
+        fname = str(QtWidgets.QFileDialog.getExistingDirectory(self, "Choose File Directory...",directory=self.settings['saveLocation']))
         if fname == '':
             return
         self.settings['saveLocation'] = fname + '/'
@@ -1357,7 +1378,7 @@ class SPEXScanWin(QtGui.QMainWindow):
         self.close()
 
 
-class QuickSettingsDialog(QtGui.QDialog):
+class QuickSettingsDialog(QtWidgets.QDialog):
     def __init__(self, parent = None, settings=None):
         super(QuickSettingsDialog, self).__init__(parent)
         self.initUI(settings)
@@ -1437,7 +1458,7 @@ class QuickSettingsDialog(QtGui.QDialog):
         s["autoSBN"] = int(dialog.ui.tGotoSB.value())
         s["autoSBW"] = int(dialog.ui.tGotoBound.value())
 
-        return (s, result==QtGui.QDialog.Accepted)
+        return (s, result==QtWidgets.QDialog.Accepted)
 
     def calcAutoSB(self):
         # if 0 in [int(i.value()) for i in self.calcSBBoxes]:
@@ -1458,7 +1479,7 @@ class QuickSettingsDialog(QtGui.QDialog):
             self.ui.tNIRLam.setText("{:.1f}".format(10000000./val))
         self.calcAutoSB()
 
-class SettingsDialog(QtGui.QDialog):
+class SettingsDialog(QtWidgets.QDialog):
     def __init__(self, parent = None, settings=None):
         super(SettingsDialog, self).__init__(parent)
         self.initUI(settings)
@@ -1579,7 +1600,7 @@ class SettingsDialog(QtGui.QDialog):
         # print dialog.buttonRole(dialog.clickedButton())
         # print '-'*10
 
-        return (settings, result==QtGui.QDialog.Accepted)
+        return (settings, result==QtWidgets.QDialog.Accepted)
 
 
 
@@ -1609,14 +1630,14 @@ class SettingsDialog(QtGui.QDialog):
         else:
             self.ui.lEndWN.setText("Ending WN")
 
-class MessageDialog(QtGui.QDialog):
+class MessageDialog(QtWidgets.QDialog):
     def __init__(self, parent, message="", duration=3000):
         if isinstance(parent, str):
             message = parent
             parent = None
         super(MessageDialog, self).__init__(parent=parent)
-        layout  = QtGui.QVBoxLayout(self)
-        text = QtGui.QLabel("<font size='6'>{}</font>".format(message), self)
+        layout  = QtWidgets.QVBoxLayout(self)
+        text = QtWidgets.QLabel("<font size='6'>{}</font>".format(message), self)
         layout.addWidget(text)
         self.setLayout(layout)
         self.setModal(False)
@@ -1648,7 +1669,9 @@ class MessageDialog(QtGui.QDialog):
 
 def main():
     import sys
-    app = QtGui.QApplication(sys.argv)
+
+
+    app = QtWidgets.QApplication(sys.argv)
     ex = SPEXScanWin()
     sys.exit(app.exec_())
 

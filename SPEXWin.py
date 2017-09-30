@@ -6,8 +6,10 @@ Created on Tue Feb 03 12:53:22 2015
 """
 
 import numpy as np
-from PyQt4 import QtGui, QtCore
-from .UIs.SPEXWindow_ui import Ui_SPEXController
+
+
+from PyQt5 import QtCore, QtGui, QtWidgets
+from UIs.SPEXWindow_ui import Ui_SPEXController
 import threading
 import time
 from InstsAndQt.Instruments import SPEX
@@ -18,11 +20,10 @@ try:
     import visa
 except:
     print('Error. VISA library not installed')
-
 import logging
 log = logging.getLogger("SPEX")
 
-class SPEXWin(QtGui.QMainWindow):
+class SPEXWin(QtWidgets.QMainWindow):
     updateDataSig = QtCore.pyqtSignal(object)
     statusSig = QtCore.pyqtSignal(object)
     scopeCollectionThread = None
@@ -61,7 +62,7 @@ class SPEXWin(QtGui.QMainWindow):
             pos = self.SPEX.stepsToWN(self.SPEX.curStep())
         except TypeError:
             log.warning("Error, spex not initialized!")
-            QtGui.QMessageBox.critical(self, "Error", "Error! SPEX not initalized!")
+            QtWidgets.QMessageBox.critical(self, "Error", "Error! SPEX not initalized!")
             pos = 0
         self.ui.sbGoto.setValue(pos)
             
@@ -77,14 +78,14 @@ class SPEXWin(QtGui.QMainWindow):
         self.ui = Ui_SPEXController()
         self.ui.setupUi(self)
         
-        self.tGot = QtGui.QLabel(self)
-        self.tWant = QtGui.QLabel(self)
+        self.tGot = QtWidgets.QLabel(self)
+        self.tWant = QtWidgets.QLabel(self)
         self.ui.statusbar.addPermanentWidget(self.tWant, 1)
         self.ui.statusbar.addPermanentWidget(self.tGot, 1)
 
         try:
             res = list(visa.ResourceManager().list_resources())
-            res = [i.encode('ascii') for i in res]
+            res = [i for i in res]
         except:
             res = ['a', 'b','c']
         res.append('Fake')
@@ -95,7 +96,7 @@ class SPEXWin(QtGui.QMainWindow):
         self.ui.bDone.clicked.connect(self.closeEvent)
         self.ui.bGo.clicked.connect(self.changeWN)
 
-        self.ui.sbGoto.setOpts(step=1, decimals=1, bounds=(11000, 15000))
+        self.ui.sbGoto.setOpts(step=1, int=True, decimals=9, bounds=(11000, 15000))
         self.ui.cGPIB.currentIndexChanged.connect(self.openSPEX)
 
         self.ui.actionInitiate_SPEX.triggered.connect(self.initSPEX)
@@ -150,7 +151,7 @@ class SPEXWin(QtGui.QMainWindow):
         is done automatically
         :return:
         """
-        newWN, ok= QtGui.QInputDialog.getDouble(
+        newWN, ok= QtWidgets.QInputDialog.getDouble(
             self, "Current SPEX Wavenumber",
             "Current SPEX Value (exact value)",
             13000, 11000, 15000
@@ -200,7 +201,7 @@ class SPEXWin(QtGui.QMainWindow):
         if 0 in [nir, thz]:
             # hsouldn't ever get here, since it shouldn't be connected, but prevent erros
             return
-        want = nir + int(self.ui.sbSB.value())*thz
+        want = float(nir) + int(self.ui.sbSB.value())*float(thz)
         self.ui.sbGoto.setValue(want)
         
     
@@ -247,7 +248,9 @@ class SPEXWin(QtGui.QMainWindow):
 
 def main():
     import sys
-    app = QtGui.QApplication(sys.argv)
+
+
+    app = QtWidgets.QApplication(sys.argv)
     ex = SPEXWin()
     sys.exit(app.exec_())
 
