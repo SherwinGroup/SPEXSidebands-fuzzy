@@ -53,7 +53,7 @@ class SPEXWin(QtWidgets.QMainWindow):
                 self.ui.sbSB.valueChanged.connect(self.setPosFromSB)
 
         if SPEXInfo is None:
-            SPEXInfo = 'GPIB0::4::INSTR'
+            SPEXInfo = 'GPIB0::1::INSTR'
         if type(SPEXInfo) is str:
             self.settings['sGPIB'] = SPEXInfo
             self.openSPEX()
@@ -65,19 +65,19 @@ class SPEXWin(QtWidgets.QMainWindow):
             QtWidgets.QMessageBox.critical(self, "Error", "Error! SPEX not initalized!")
             pos = 0
         self.ui.sbGoto.setValue(pos)
-            
-            
+
+
         if parent:
             self.ui.cGPIB.setEnabled(False)
-            
-        self.statusSig.connect(self.updateStatusBar)
-        
 
-        
+        self.statusSig.connect(self.updateStatusBar)
+
+
+
     def initUI(self):
         self.ui = Ui_SPEXController()
         self.ui.setupUi(self)
-        
+
         self.tGot = QtWidgets.QLabel(self)
         self.tWant = QtWidgets.QLabel(self)
         self.ui.statusbar.addPermanentWidget(self.tWant, 1)
@@ -92,15 +92,15 @@ class SPEXWin(QtWidgets.QMainWindow):
         self.settings['GPIBChoices'] = res
         self.ui.cGPIB.addItems(res)
         self.ui.cGPIB.setCurrentIndex(res.index(self.settings['sGPIB'])) #-1 for counting from 0
-        
+
         self.ui.bDone.clicked.connect(self.closeEvent)
         self.ui.bGo.clicked.connect(self.changeWN)
 
-        self.ui.sbGoto.setOpts(step=1, int=True, decimals=9, bounds=(11000, 15000))
+        self.ui.sbGoto.setOpts(step=1, int=True, decimals=9, bounds=(10000, 15000))
         self.ui.cGPIB.currentIndexChanged.connect(self.openSPEX)
 
         self.ui.actionInitiate_SPEX.triggered.connect(self.initSPEX)
-        
+
         self.show()
 
     def openSPEX(self):
@@ -113,10 +113,10 @@ class SPEXWin(QtWidgets.QMainWindow):
             pos = self.SPEX.stepsToWN(self.SPEX.curStep())
             self.ui.sbGoto.setValue(pos)
             print('SPEX opened')
-        except AttributeError:
+        except (AttributeError, TypeError):
             # Don't reset open instrument if
             # you failed from a boot error
-            if self.SPEX.whereAmI() == 'B':
+            if self.SPEX.whereAmI().lower() == 'b':
                 print("SPEX not initialized")
                 return
         except Exception as e:
@@ -131,7 +131,7 @@ class SPEXWin(QtWidgets.QMainWindow):
                 self.ui.cGPIB.findText("Fake")
             )
             self.ui.cGPIB.currentIndexChanged.connect(self.openSPEX)
-            
+
     def initSettings(self):
         #Initializes all the settings for the window in one tidy location,
         #make it have a more logical place if settings are saved and recalled eac
@@ -141,8 +141,8 @@ class SPEXWin(QtWidgets.QMainWindow):
         s['aGPIB'] = 'Fake'
         s['sGPIB'] = 'Fake'
         s['GPIBChoices'] = []
-        
-        
+
+
         self.settings = s
 
     def initSPEX(self):
@@ -154,7 +154,7 @@ class SPEXWin(QtWidgets.QMainWindow):
         newWN, ok= QtWidgets.QInputDialog.getDouble(
             self, "Current SPEX Wavenumber",
             "Current SPEX Value (exact value)",
-            13000, 11000, 15000
+            13000, 10000, 15000
         )
         if not ok: return
         self.SPEX.initBoot(newWN)
@@ -174,12 +174,12 @@ class SPEXWin(QtWidgets.QMainWindow):
         self.tWant.setText('Wanted: {}'.format(desiredWN))
         log.debug("Wanted {}wn, {} steps".format(desiredWN, self.SPEX.wavenumberToSteps(desiredWN)))
         self.SPEX.gotoWN(desiredWN)
-        
+
 #        self.statusSig.emit([self.tGot, self.SPEX.currentPositionSteps])
         self.tGot.setText('Got: {}'.format(self.SPEX.currentPositionWN))
         self.ui.sbGoto.setEnabled(True)
         self.ui.bGo.setEnabled(True)
-        
+
     def updateStatusBar(self, args):
         '''Update the two status bar things
         first element of arg shold be reference to QLabel to eidt
@@ -188,7 +188,7 @@ class SPEXWin(QtWidgets.QMainWindow):
         if id(args[0]==id(self.tGot)):
             pre = 'Got: '
         args[0].setText(pre+str(args[1]))
-        
+
     def updateStatusBarBoth(self, want, got):
         '''Updates the status bar when both are pass.
         Unique from updateStatusBar() in that it needs both simultanously.
@@ -203,8 +203,8 @@ class SPEXWin(QtWidgets.QMainWindow):
             return
         want = float(nir) + int(self.ui.sbSB.value())*float(thz)
         self.ui.sbGoto.setValue(want)
-        
-    
+
+
     def closeEvent(self, event):
         print('Close event handling')
         #A little hacky way to let the main window know that this window has closed
@@ -257,6 +257,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-

@@ -355,15 +355,15 @@ class SPEXScanWin(QtWidgets.QMainWindow):
         agilGPIB = 'USB0::0x0957::0x1734::MY44007041::INSTR'
         s['aGPIB'] = agilGPIB if agilGPIB in s["GPIBChoices"] else "Fake"
 
-        specGPIB = 'GPIB0::4::INSTR'
-        s['SGPIB'] = specGPIB if specGPIB in s["GPIBChoices"] else "Fake"
+        specGPIB = 'GPIB0::1::INSTR'
+        s['sGPIB'] = specGPIB if specGPIB in s["GPIBChoices"] else "Fake"
 
 
         s['pyCh'] = 3  #Osc channel for the pyro
         s['pmCh'] = 2  #osc channel for the pmt
 
         #saving settings
-        s['saveLocation'] = '.'
+        s['saveLocation'] = r'Z:\~HSG\Data\2018'
         s['saveName'] = ''
         s['seriesName'] = ''
         s['saveComments'] = ''
@@ -431,8 +431,6 @@ class SPEXScanWin(QtWidgets.QMainWindow):
         s['bcpyCD'] = [0, 0]
         s['bcpmBG'] = [0, 0]
         s['bcpmSB'] = [0, 0]
-
-
 
         self.settings = s
 
@@ -523,8 +521,9 @@ class SPEXScanWin(QtWidgets.QMainWindow):
         try:
             self.SPEX = SPEX(self.settings['sGPIB'])
             print('SPEX opened')
-        except:
-            print('Error opening SPEX. Adding Fake')
+        except Exception as e:
+            log.exception("Error opening SPEX. Adding Fake")
+            # print('Error opening SPEX. Adding Fake')
             self.settings['sGPIB'] = 'Fake'
             self.SPEX = SPEX(self.settings['sGPIB'])
 
@@ -625,10 +624,10 @@ class SPEXScanWin(QtWidgets.QMainWindow):
         return start, end
 
     def updateStatusBar(self, args):
-        '''function to update the status bar. Connects to a signal so it
+        """function to update the status bar. Connects to a signal so it
            can be used from different threads. Pass a string to emit a message for
            3 seconds. Else pass a list, the first element the message and the second
-           a ms value for the timeout'''
+           a ms value for the timeout"""
         if type(args) is str:
 #            self.ui.statusbar.showMessage(args, 3000)
             self.tGeneralSB.setText(args)
