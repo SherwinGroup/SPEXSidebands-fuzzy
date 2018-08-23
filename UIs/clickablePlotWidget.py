@@ -1,10 +1,15 @@
-from __future__ import print_function
+
 import pyqtgraph as pg
+
 import numpy as np
+
 import sys
-from PyQt4 import QtCore, QtGui
-from clickablePlotSettings_ui import Ui_LineSettingsDialog
-from PlotDataErrorItem import *
+
+from PyQt5 import QtCore, QtGui, QtWidgets
+from .clickablePlotSettings_ui import Ui_LineSettingsDialog
+
+from .PlotDataErrorItem import *
+
 
 config_options = {
     "selectionThickness": 3
@@ -131,7 +136,7 @@ class ClickablePlotWidget(pg.PlotWidget):
             self.doubleClickTimer.start()
 
 
-class CurveItemSettings(QtGui.QDialog):
+class CurveItemSettings(QtWidgets.QDialog):
     def __init__(self, *args, **kwargs):
         curveList = kwargs.pop('curves', None)
         clickedCurve = kwargs.pop('clickedCurve', None)
@@ -163,7 +168,7 @@ class CurveItemSettings(QtGui.QDialog):
         initialListItem = None
 
         for curveItem in curveList:
-            listItem = QtGui.QListWidgetItem(self.ui.lwCurves)
+            listItem = QtWidgets.QListWidgetItem(self.ui.lwCurves)
             listItem.setFlags(QtCore.Qt.ItemIsUserCheckable | QtCore.Qt.ItemIsSelectable |
                               QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsEditable)
             listItem.setCheckState(QtCore.Qt.Unchecked)
@@ -204,7 +209,7 @@ class CurveItemSettings(QtGui.QDialog):
         self.handlecurrentItemChanged(initialListItem)
 
     def getCurveFromItem(self, item):
-        for k, v in self.listViewCurveItems.items():
+        for k, v in list(self.listViewCurveItems.items()):
             if v is item: return k
 
     def handlecurrentItemChanged(self, *args, **kwargs):
@@ -326,7 +331,7 @@ class CurveItemSettings(QtGui.QDialog):
 
 
 if __name__=='__main__':
-    ex = QtGui.QApplication([])
+    ex = QtWidgets.QApplication([])
     wid = ClickablePlotWidget()
     wid.plotItem.addLegend()
     wid.plot([0, 1, 2, 3, 4], pen='g', width=5, name='green')

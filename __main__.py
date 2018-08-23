@@ -7,7 +7,7 @@ Created on Tue Feb 03 12:53:22 2015
 import numpy as np
 import scipy.integrate as spi
 from scipy.interpolate import interp1d
-from PyQt4 import QtGui, QtCore
+from PyQt5 import QtCore, QtGui, QtWidgets
 import threading
 import json
 import glob
@@ -21,29 +21,39 @@ try:
 except Exception as e:
     raise IOError('Instrument library not found. Often placed in another directory')
 from InstsAndQt.PyroOscope.OscWid import OscWid
-import motordriver as md
+from InstsAndQt.customQt import TempThread
+# import motordriver as md
+import InstsAndQt.MotorDriver as md
+import pyqtgraph as pg
+
 from SPEXWin import SPEXWin
 from UIs.MainWindow_ui import Ui_MainWindow
 from UIs.Settings_ui import Ui_Settings
 from UIs.QuickSettings_ui import Ui_QuickSettings
-import pyqtgraph as pg
+
 pg.setConfigOption('background', 'w')
 pg.setConfigOption('foreground', 'k')
 try:
     import visa
+
+
 except:
-    print 'Error. VISA library not installed'
+    print('Error. VISA library not installed')
 
 # http://stackoverflow.com/questions/1551605/how-to-set-applications-taskbar-icon-in-windows-7/1552105#1552105
 # Don't want python app window to clump
 # with the other windows
 import ctypes, os
+
+
 if os.name is not "posix":
     myappid = 'Sherwin.Group.SPEXSidebands.100' # arbitrary string
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
 
 import logging
+
+
 log = logging.getLogger("SPEX")
 log.setLevel(logging.DEBUG)
 handler1 = logging.StreamHandler()
@@ -74,6 +84,7 @@ in the file NDfilter_stats.
 """
 # Text file with the three filters [Wavelength (nm), Mr. Blue, Mr. White, Three sisters] raw transmission values
 ndFilters_trans = np.loadtxt('NDfilter_stats.txt', comments='#', delimiter=',')
+
 # The linear interpolation function of the three ND filters we use
 mrBlue = interp1d(ndFilters_trans[:, 0], ndFilters_trans[:, 1]) # NE20A filter with blue 'A'
 mrWhite = interp1d(ndFilters_trans[:, 0], ndFilters_trans[:, 2]) # NE20A filter with no coloring
@@ -99,6 +110,8 @@ plotColors = [pg.intColor(i, hues = 20,
                           sat = 255) for i in range(20)]
 
 import itertools
+
+
 plotColors = itertools.cycle(plotColors)
 
 
@@ -150,7 +163,7 @@ def getPhotonCountedWaveform(wf, cutoff=20):
 
     return wfOrig
 
-class MainWin(QtGui.QMainWindow):
+class SPEXScanWin(QtWidgets.QMainWindow):
     #emits when oscilloscope is done taking data so that
     #the data collecting thread knows it's ready to processes
     updateDataSig = QtCore.pyqtSignal()
@@ -179,19 +192,38 @@ class MainWin(QtGui.QMainWindow):
     sigNewStep = QtCore.pyqtSignal()
 
     sigScanFinished = QtCore.pyqtSignal()
-    
+
+    # for updating arbitrary elements. First arg is callable,
+    # second is args
+    sigUpdateGuiElement = QtCore.pyqtSignal(object, object)
+
     #Thread which handles polling the oscilloscope
     scopeCollectionThread = None
     #Thread which handles scanning the SPEX and updating data, etc
     scanRunningThread = None
+
+    # Thread for controlling thz power sweep
+    thThzSweep = TempThread()
     def __init__(self):
-        super(MainWin, self).__init__()
+        super(SPEXScanWin, self).__init__()
         self.initSettings()
         if self.checkSaveFile():
             self.loadSettings()
 
-
         self.initUI()
+
+        try:
+            self.motorDriver = md.MotorWindow()
+            self.ui.tabWidget.addTab(self.motorDriver, "THz Attenuator")
+
+            self.mDoThzSweep = self.ui.menuFile.addAction("Do THz Power Sweep")
+            self.mDoThzSweep.setCheckable(True)
+            self.mDoThzSweep.triggered.connect(self.startTHzPowerSweep)
+        except Exception as e:
+            log.error("Error loading motor driver!")
+            # self.motorDriver = None
+        self.oscWidget = OscWid(self)
+        self.oscWidget.setParentScope(self)
         # self.pyDataSig.connect(self.updatePyroGraph)
         self.pyDataSig.connect(self.oscWidget.setData)
         self.pmDataSig.connect(self.updatePMTGraph)
@@ -200,22 +232,18 @@ class MainWin(QtGui.QMainWindow):
         self.boxcarSig.connect(self.updateBoxcarTexts)
         self.sigNewStep.connect(self.updateScan)
         self.sigScanFinished.connect(self.finishScan)
-
-        
+        self.sigUpdateGuiElement.connect(self.createGuiElement)
+        self.thThzSweep.target = self.doTHzPowerSweep
+        self.ui.splitter.insertWidget(0, self.oscWidget)
         self.openSPEX()
         self.openAgi()
         self.SPEXWindow = None
         self.pulseWidth = 2e-6
-        try:
-            self.motorDriver = md.MotorWindow()
-        except Exception as e:
-            log.error("Error loading motor driver!")
-            self.motorDriver = None
-        
+
     def initUI(self):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
-        
+
         #Initialize the plots (see imports at top for how to set the colors)
 
         self.pPMT = self.ui.gSignal.plot(pen='k')
@@ -271,10 +299,10 @@ class MainWin(QtGui.QMainWindow):
         for i in lrtb:
             for j in i:
                 j.textAccepted.connect(self.updateLinearRegionsFromText)
-        
+
         self.linearRegionTextBoxes = lrtb
-        
-        
+
+
         self.ui.bChooseDirectory.clicked.connect(self.updateSaveLoc)
         self.ui.bQuickStart.clicked.connect(self.quickStartScan)
         self.ui.bStart.clicked.connect(self.startScan)
@@ -297,11 +325,11 @@ class MainWin(QtGui.QMainWindow):
         self.ui.tSeries.setText(self.settings['seriesName'])
         self.ui.tSidebandNumber.setText(str(self.settings['autoSBN']))
 
-        self.tGeneralSB = QtGui.QLabel()
-        self.tbcPyroFP = QtGui.QLabel()
-        self.tbcPyroCD = QtGui.QLabel()
-        self.tbcPMSG = QtGui.QLabel()
-        
+        self.tGeneralSB = QtWidgets.QLabel()
+        self.tbcPyroFP = QtWidgets.QLabel()
+        self.tbcPyroCD = QtWidgets.QLabel()
+        self.tbcPMSG = QtWidgets.QLabel()
+
         self.ui.statusbar.addPermanentWidget(self.tGeneralSB)
         self.ui.statusbar.addPermanentWidget(self.tbcPyroFP, 1)
         self.ui.statusbar.addPermanentWidget(self.tbcPyroCD, 1)
@@ -309,12 +337,9 @@ class MainWin(QtGui.QMainWindow):
 
         # self.ui.splitter_2.setStretchFactor(0, 1)
         # self.ui.splitter_2.setStretchFactor(1, 1)
-        self.oscWidget = OscWid(**self.settings)
-        self.oscWidget.setParentScope(self)
-        self.ui.splitter.insertWidget(0, self.oscWidget)
 
-        
-        
+
+
         self.show()
     def initSettings(self):
         #Initializes all the settings for the window in one tidy location,
@@ -323,17 +348,22 @@ class MainWin(QtGui.QMainWindow):
         s = dict()
         #Communication settings
         try:
-            s['GPIBChoices'] = [i.encode("ascii") for i in visa.ResourceManager().list_resources()]
+            s['GPIBChoices'] = [str(i) for i in visa.ResourceManager().list_resources()]
         except:
             s['GPIBChoices'] = ["a", "b", "c"]
         s['GPIBChoices'].append("Fake")
-        s['aGPIB'] = 'USB0::0x0957::0x1734::MY44007041::INSTR' if 'USB0::0x0957::0x1734::MY44007041::INSTR' in s['GPIBChoices'] else "Fake"#GPIB of the agilent
-        s['sGPIB'] = 'GPIB0::4::INSTR' if 'GPIB0::4::INSTR' in s['GPIBChoices'] else "Fake"#'GPIB0::4::INSTR' #GPIB of the SPEX
+        agilGPIB = 'USB0::0x0957::0x1734::MY44007041::INSTR'
+        s['aGPIB'] = agilGPIB if agilGPIB in s["GPIBChoices"] else "Fake"
+
+        specGPIB = 'GPIB0::1::INSTR'
+        s['sGPIB'] = specGPIB if specGPIB in s["GPIBChoices"] else "Fake"
+
+
         s['pyCh'] = 3  #Osc channel for the pyro
         s['pmCh'] = 2  #osc channel for the pmt
-        
+
         #saving settings
-        s['saveLocation'] = '.'
+        s['saveLocation'] = r'Z:\~HSG\Data\2018'
         s['saveName'] = ''
         s['seriesName'] = ''
         s['saveComments'] = ''
@@ -348,13 +378,13 @@ class MainWin(QtGui.QMainWindow):
 
         s["autoSBN"] = 2 # automatic sideband, desired sb
         s["autoSBW"] = 4  # automatic SB, desired width
-        
+
         #scan settings
         s['startWN'] = 0 #Starting wavenumber
-        s['stepWN'] = -0.5 #how many wavenumbers to steop by
+        s['stepWN'] = -1 #how many wavenumbers to steop by
         s['endWN'] = 0 #Ending wavenumber
         s['ave'] = 10 #How many values to take an average of
-        
+
         #running flags
         #Pausing causes the oscilloscope reading loop to wait until we are unpaused
         s['notPaused'] = False # start paused
@@ -367,7 +397,7 @@ class MainWin(QtGui.QMainWindow):
         #is moving between wavenumbers, the scope will still be collecting data
         #and we don't want to falsely collect data during these times
         s['collectingData'] = False
-        
+
         #data
         s['pcData'] = None # photon counted data
         s['pmData'] = None
@@ -380,7 +410,14 @@ class MainWin(QtGui.QMainWindow):
         s["saveWaveforms"] = False
         s["doPC"] = False
         s["PCThreshold"] = 0
-        
+        s["thzSweepPoints"] = []
+
+        # Number of points the oscilliscope should digitize and
+        # send to the computer. Set to 0 to not change it
+        s["agilPoints"] = 10000
+        s["agilTrigSrc"] = 4
+        s["agilTrigLvl"] = 1.5
+
         #boundaries for boxcar integration
         #bc[py|pm] -> boxcar[Pyro|PMT]
         #bg -> background
@@ -394,9 +431,7 @@ class MainWin(QtGui.QMainWindow):
         s['bcpyCD'] = [0, 0]
         s['bcpmBG'] = [0, 0]
         s['bcpmSB'] = [0, 0]
-        
-        
-        
+
         self.settings = s
 
     def abortScan(self):
@@ -404,7 +439,7 @@ class MainWin(QtGui.QMainWindow):
     def launchSettings(self):
         try:
             res = list(visa.ResourceManager().list_resources())
-            res = [i.encode('ascii') for i in res]
+            res = [str(i) for i in res]
         except:
             self.statusSig.emit(['Error loading GPIB list', 5000])
             res = ['a', 'b','c']
@@ -413,7 +448,7 @@ class MainWin(QtGui.QMainWindow):
         self.settings["fel_power"] = str(self.oscWidget.ui.tFELP.text())
         self.settings["fel_lambda"] = str(self.oscWidget.ui.tFELFreq.text())
         self.settings["fel_reprate"] = str(self.oscWidget.ui.tFELRR.text())
-        
+
         #need to pass a copy of the settings. Otherwise it passes the reference,
         #thus changing the values and we're unable to see whether things have changed.
         newSettings, ok = SettingsDialog.getSettings(self, copy.copy(self.settings))
@@ -434,12 +469,12 @@ class MainWin(QtGui.QMainWindow):
             self.ui.tSidebandNumber.setText(str(newSettings["autoSBN"]))
 
         #Need to check to see if the GPIB values changed so we can update them.
-        #The opening procedure opens a fake isntrument if things go wrong, which 
+        #The opening procedure opens a fake isntrument if things go wrong, which
         #means we can't assign the settings dict after calling openKeith() as that would
         #potentially overwrite if we needed to open a fake instr.
         #
         #We get the old values before updating the settings. Th
-        
+
         oldaGPIB = self.settings['aGPIB']
         oldsGPIB = self.settings['sGPIB']
 
@@ -471,12 +506,12 @@ class MainWin(QtGui.QMainWindow):
             self.settings['sGPIB'] = newSettings['sGPIB']
             self.openSPEX()
 
-        
+
         #enforce the correct sign
         self.settings['stepWN'] = np.sign(self.settings['endWN']-self.settings['startWN'])*np.abs(
                     self.settings['stepWN'])
         self.saveSettings()
-            
+
     def openSPEXWindow(self):
         if self.SPEXWindow is None:
             self.SPEXWindow = SPEXWin(SPEXInfo = self.SPEX, parent=self)
@@ -485,32 +520,33 @@ class MainWin(QtGui.QMainWindow):
     def openSPEX(self):
         try:
             self.SPEX = SPEX(self.settings['sGPIB'])
-            print 'SPEX opened'
-        except:
-            print 'Error opening SPEX. Adding Fake'
+            print('SPEX opened')
+        except Exception as e:
+            log.exception("Error opening SPEX. Adding Fake")
+            # print('Error opening SPEX. Adding Fake')
             self.settings['sGPIB'] = 'Fake'
             self.SPEX = SPEX(self.settings['sGPIB'])
-    
+
     def openAgi(self):
         #Stop collection if it's happening
         self.settings['collectingScope'] = False
         isPaused = not self.settings['notPaused']
-        print 'isPaused', isPaused
+        print('isPaused', isPaused)
         if isPaused:
             self.togglePause(False)
-        try: 
+        try:
             self.scopeCollectionThread.join()
         except:
             pass
         #Try to connect it
         try:
             self.Agil = Agilent6000(self.settings['aGPIB'])
-            print 'Agilent opened'
+            print('Agilent opened')
         except:
-            print 'Error opening Agilent. Adding Fake'
+            print('Error opening Agilent. Adding Fake')
             self.settings['aGPIB'] = 'Fake'
             self.Agil = Agilent6000(self.settings['aGPIB'])
-            
+
         # self.Agil.setTrigger()
         self.settings['collectingScope'] = True
 
@@ -523,11 +559,11 @@ class MainWin(QtGui.QMainWindow):
         self.Agil.write(":WAV:POIN 10000")
         if isPaused:
             self.togglePause(True)
-            
+
         self.scopeCollectionThread = threading.Thread(target = self.collectScopeLoop)
         self.scopeCollectionThread.start()
 
-            
+
     def updateBoxcarTexts(self, v1=0, v2=0, v3=0):
         return
         v1 = '{:.3g}'.format(v1)
@@ -536,7 +572,7 @@ class MainWin(QtGui.QMainWindow):
         self.tbcPyroFP.setText('PyFP Box: ' + v1)
         self.tbcPyroCD.setText('PyCD Box:' + v2)
         self.tbcPMSG.setText('PmSG Box: ' + v3)
-        
+
     def togglePause(self, val):
         #True to pause
         #False to unpause
@@ -546,13 +582,13 @@ class MainWin(QtGui.QMainWindow):
                 self.pausingLoop.exit()
             except:
                 pass
-        
+
     def integrateData(self, data):
         dt = np.diff(data[:2,0])[0]
 
         pmBGbounds = self.boxcarRegions[0].getRegion()
         pmBGidx = self.findIndices(pmBGbounds, data[:,0])
-        
+
         pmSGbounds = self.boxcarRegions[1].getRegion()
         pmSGidx = self.findIndices(pmSGbounds, data[:,0])
 
@@ -588,10 +624,10 @@ class MainWin(QtGui.QMainWindow):
         return start, end
 
     def updateStatusBar(self, args):
-        '''function to update the status bar. Connects to a signal so it
+        """function to update the status bar. Connects to a signal so it
            can be used from different threads. Pass a string to emit a message for
            3 seconds. Else pass a list, the first element the message and the second
-           a ms value for the timeout'''
+           a ms value for the timeout"""
         if type(args) is str:
 #            self.ui.statusbar.showMessage(args, 3000)
             self.tGeneralSB.setText(args)
@@ -601,16 +637,18 @@ class MainWin(QtGui.QMainWindow):
 
     def getSeries(self):
         sers = str(self.ui.tSeries.text())
-        # try:
-        #     s = {"fel_transmission": float(self.motorDriver.ui.tCosCalc.text())}
-        # except:
-        #     s = {"fel_transmission": 1.0}
+        try:
+            s = {"fel_transmission": float(self.motorDriver.ui.tCosCalc.text())}
+        except:
+            s = {"fel_transmission": 1.0}
+        self.settings.update(s)
         sers = sers.format(NIRP=self.settings['nir_power'],
                      NIRL=self.settings['nir_lambda'],
                      FELP=self.settings['fel_power'],
                      FELL=self.settings['fel_lambda'],
                      TEMP=self.settings['temperature'],
-                     PMHV=self.settings['pm_hv'])
+                     PMHV=self.settings['pm_hv'],
+                     FELTRANS=self.settings["fel_transmission"])
         return sers
 
 
@@ -659,7 +697,7 @@ class MainWin(QtGui.QMainWindow):
         # Update the sideband textbox if you used the
         # autocalculator to move to a new one.
 
-        print self.settings["autoSBN"], sets["autoSBN"]
+        print(self.settings["autoSBN"], sets["autoSBN"])
 
         if not self.settings["autoSBN"] == sets["autoSBN"]:
             self.ui.tSidebandNumber.setText(str(sets["autoSBN"]))
@@ -792,174 +830,7 @@ class MainWin(QtGui.QMainWindow):
         #clean up after done
         self.sigScanFinished.emit()
 
-    """
-    def runScanLoopOld(self):
-        # Lets the scope know to start counting pulses,
-        # calculating fields, intensities and
-        # emitting signals for it
-        self.oscWidget.startExposure()
-        if self.settings["stepWN"] == 0 or self.settings["saveWaveforms"]:
-            WNRange = np.array([self.settings['endWN']])
-        else:
-            WNRange = np.arange(self.settings['startWN'],
-                                    self.settings['endWN'], self.settings['stepWN'])
-            WNRange = np.append(WNRange, self.settings['endWN'])
 
-        for wavenumber in WNRange:
-            if not self.settings['runningScan']:
-                log.info('breaking scan')
-                break
-            self.settings['collectingData'] = False
-            self.SPEX.gotoWN(wavenumber)
-            self.statusSig.emit(['Wavenumber: {}/{}. No. {}/{}'.format(
-                wavenumber, WNRange[-1], 0, self.settings['ave']), 0])
-            self.wnUpdateSig.emit(str(wavenumber), str(self.SPEX.currentPositionWN))
-            num = 0 # number of averages. Doing it this way so that if we want to implement
-                    # something where we don't count a number, then we can decline decrementing
-                    # effectively saying the point didn't happen
-            missed = 0
-            self.settings['collectingData'] = True
-            while num < self.settings['ave']:
-                if not self.settings['runningScan']:
-                    break
-                # Now want to take data. This means we need to wait for the oscilloscope to
-                # finish collecting its current round. Enter a waiting loop.
-                # Note: the event loop has to be instantiated here. I'm not sure why,
-                # probably a main thread/worker thread/mutexing bullshit reason.
-                #
-                # Also note, it's connected to the oscWidget, which is really the
-                # pyro widget. This signal will inform the thread whether
-                # the pulse was valid or not, since it handles that logic
-                self.waitingForDataLoop = QtCore.QEventLoop()
-                self.oscWidget.sigPulseCounted.connect(self.waitingForDataLoop.exit)
-                ret = self.waitingForDataLoop.exec_()
-
-                # the exit value of the waiting loop is given by the signal from
-                # oscWid, and is negative for missed pulses
-                isValid = True
-                if ret<0: isValid = False
-
-                # If you don't disconnect it, you get a really bad memory leak
-                # I think qt will keep an internal reference when you connect
-                # signals/slots, and this was just creating a vast amount of
-                # qeventloop's
-                self.oscWidget.sigPulseCounted.disconnect(self.waitingForDataLoop.exit)
-                sig = self.integrateData()
-
-                if self.settings['pm_hv'] == 700:
-                    mult = 10
-                    # print "700 V setting, mult = {}".format(mult)
-                else:
-                    mult = 1
-                    # print "Not 700 V setting, {}, mult = {}".format(self.settings['pm_hv'], mult)
-
-                sig *= mult # to account for the difference between 700 V and 1kV
-
-                # also account for the attenuation due to the filters
-                T = 1
-                T = T * mrWhite(1e7/wavenumber) if self.settings["filter"] & filterBFWhite else T
-                T = T * mrBlue(1e7/wavenumber) if self.settings["filter"] & filterBFBlue else T
-                T = T * mrTriplet(1e7/wavenumber) if self.settings["filter"] & filterBFTriplet else T
-                sig /= T
-
-                if str(self.ui.tSidebandNumber.text()) == '0':
-                    # Don't worry about FEL when looking at the
-                    # laser line
-                    isValid = True
-                if isValid:
-                    num += 1
-                    if self.settings["saveWaveforms"]:
-                        pyD = self.oscWidget.getData()
-                        pmD = self.settings['pmData']
-                        if self.settings["doPC"]:
-                            pmD = getPhotonCountedWaveform(pmD, self.ui.linePCThreshold.value())
-
-                        oldpyD = self.settings['allReferenceWaveforms']
-                        oldpmD = self.settings['allSignalWaveforms']
-
-                        if pyD.shape[0] != oldpyD.shape[0]:
-                            # This is the first one, grab the time
-                            oldpyD = pyD.copy()
-                            oldpmD = pmD.copy()
-                        else:
-                            oldpyD = np.column_stack((oldpyD, pyD.copy()[:,1]))
-                            oldpmD = np.column_stack((oldpmD, pmD.copy()[:,1]))
-
-                        self.settings['allReferenceWaveforms'] = oldpyD
-                        self.settings['allSignalWaveforms'] = oldpmD
-
-                    else:
-                        self.settings['allData'] = np.append(
-                            self.settings['allData'],
-                            [[wavenumber,
-                              self.oscWidget.settings["pyFP"],
-                              self.oscWidget.settings["pyCD"],
-                              sig]],
-                            axis=0)
-                else:
-                    missed += 1
-                self.sigNewStep.emit()
-                self.statusSig.emit(['Wavenumber: {}/{}. No. {}({})/{}'.format(
-                    wavenumber, WNRange[-1], num, missed, self.settings['ave']), 0])
-        self.oscWidget.stopExposure()
-        filename = str(self.ui.tSaveName.text())
-
-        # Automatically add the sideband to the filename,
-        # using 'p' or 'm' prefix for positive or negative
-        # (since you can't use '-6' and '+6' in filenames
-        sb = str(self.ui.tSidebandNumber.text())
-        if sb: # string is not empty
-            if int(sb)>=0:
-                filename += '_p{}'.format(abs(int(sb)))
-            else:
-                filename += '_m{}'.format(abs(int(sb)))
-
-        filename += '_scanData'
-
-        #save Data. Check if there are any in the folder yet
-        files = glob.glob(os.path.join(self.settings['saveLocation'],str(self.ui.tSaveName.text())
-                                       , filename + '*.txt'))
-        num = len(files)
-
-        if self.settings["saveWaveforms"]:
-            data = self.settings['allSignalWaveforms']
-            time = data[:,0]
-            if self.settings["doPC"]:
-                sigData = data[:,1:].sum(axis=1)
-            else:
-                sigData = data[:,1:].mean(axis=1)*1e3
-            sigErr = data[:,1:].std(axis=1)/np.sqrt(data.shape[1]-1)*1e3
-            data = self.settings['allReferenceWaveforms']
-            refData = data[:,1:].mean(axis=1)*1e3
-            refErr = data[:,1:].std(axis=1)/np.sqrt(data.shape[1]-1)*1e3
-
-            saveData = np.column_stack((time, sigData,sigErr, refData, refErr))
-
-
-            originheader = 'Time,PMT Signal,PMT MeanErr,Ref Signal,Ref MeanErr\n'
-            if self.settings["doPC"]:
-                originheader += 'ms,photons,,mV,mV\n'
-            else:
-                originheader += 'ms,mV,mV,mV,mV\n'
-            originheader += 't,{} PMT,,{} Ref,'.format(self.getSeries(), self.getSeries())
-            fmt = '%.10e'
-
-        else:
-            saveData = self.settings["allData"]
-            originheader = 'Wavenumber, Integrated front porch, Integrated Cavity dump, integrated signal\n'
-            originheader += 'cm-1, arb.u., arb.u., arb.u.'
-            fmt = '%.18e'
-        np.savetxt(os.path.join(
-            self.settings['saveLocation'],str(self.ui.tSaveName.text()),'{}{}.txt'.format(filename, num)),
-            saveData,
-            header = '#'+self.genSaveHeader().replace('\n', '\n#') +  '\n'+originheader,
-            comments='',
-            delimiter=',',
-            fmt = fmt)
-
-        #clean up after done
-        self.sigScanFinished.emit()
-        """
     def finishScan(self):
         self.settings['collectingData'] = False
         self.settings['runningScan'] = False
@@ -979,21 +850,21 @@ class MainWin(QtGui.QMainWindow):
             # Set the array of data
             # This separates it so all of the data for one
             # wavenumber is in one row, and the rest are nan
-            newData[wnIdx, range(len(data[:,3]))] = data[:,3]
+            newData[wnIdx, list(range(len(data[:,3])))] = data[:,3]
             # sum over them, ignoring the nan values
             newVal = np.nanmean(newData, axis=1)
             errs = np.nanstd(newData, axis=1)/np.sqrt(
                 np.sum(1-np.isnan(newData), axis=1)
             )
             label = self.getSeries() + '_' + str(self.ui.tSidebandNumber.text())
-            col = plotColors.next()
+            col = next(plotColors)
             self.ui.gScan.errorbars(x=wn, y=newVal, errorbars=errs, pen=col, name=label)
         else:
             data = self.settings['allSignalWaveforms']
             time = data[:,0]
             data = data[:, 1:].mean(axis=1)
             label = self.getSeries() + '_' + str(self.ui.tSidebandNumber.text())
-            col = plotColors.next()
+            col = next(plotColors)
             self.ui.gScan.plot(x=time, y=data, name=label, pen=col)
         self.statusSig.emit(['Done', 3000])
 
@@ -1017,6 +888,41 @@ class MainWin(QtGui.QMainWindow):
 #            time.sleep(.5)
 
     @staticmethod
+    def _____DATASWEEPS():pass
+    def startTHzPowerSweep(self, val):
+        if not val: #unchecking
+            return
+        st, ok = QtWidgets.QInputDialog.getText(self,
+                    "Desired Angles",
+                    "Enter angles in deg separated by commas",
+                    text=",".join(map(str, self.settings["thzSweepPoints"])))
+        if not ok:
+            return
+        self.settings["thzSweepPoints"] = [float(i) for i in st.split(',')]
+
+        self.thThzSweep.start()
+
+
+    def doTHzPowerSweep(self):
+        for angle in self.settings["thzSweepPoints"]:
+            if not self.mDoThzSweep.isChecked():
+                break
+            self.sigUpdateGuiElement.emit(
+                self.motorDriver.ui.sbAngle.setValue, angle
+            )
+            self.motorDriver.ui.bGo.clicked.emit(False)
+            time.sleep(0.1)
+            self.motorDriver.thMoveMotor.wait()
+            self.ui.bQuickStart.clicked.emit(False)
+            time.sleep(0.1)
+            self.scanRunningThread.join()
+        self.sigUpdateGuiElement.emit(
+            self.mDoThzSweep.setChecked, False
+        )
+
+
+
+    @staticmethod
     def _____GRAPH_UPDATES():pass
 
     def initRegions(self):
@@ -1025,7 +931,7 @@ class MainWin(QtGui.QMainWindow):
             boxcarRegions = self.boxcarRegions # the ones for the PMT
             try:
                 length = len(self.settings['pmData'])
-                point = self.settings['pmData'][length/2,0]
+                point = self.settings['pmData'][length//2,0]
             except:
                 return
 
@@ -1138,7 +1044,10 @@ class MainWin(QtGui.QMainWindow):
         self.ui.linePCThreshold.blockSignals(False)
 
     def updatePMTGraph(self, data):
-        self.settings['pmData'] = data
+        # save a copy, otherwise there's a race condition
+        # with the multipliers from filters/PMT HV which
+        # cause a jarring view on the screen, which is annoying.
+        self.settings['pmData'] = data.copy()
         self.pPMT.setData(data[:,0], data[:,1])
 
     def updatePCGraph(self, data):
@@ -1165,7 +1074,7 @@ class MainWin(QtGui.QMainWindow):
             # Set the array of data
             # This separates it so all of the data for one
             # wavenumber is in one row, and the rest are nan
-            newData[wnIdx, range(len(data[:,3]))] = data[:,3]
+            newData[wnIdx, list(range(len(data[:,3])))] = data[:,3]
             # sum over them, ignoring the nan values
             newVal = np.nanmean(newData, axis=1)
         else:
@@ -1249,7 +1158,7 @@ class MainWin(QtGui.QMainWindow):
             fmt = fmt)
 
     def updateSaveLoc(self):
-        fname = str(QtGui.QFileDialog.getExistingDirectory(self, "Choose File Directory...",directory=self.settings['saveLocation']))
+        fname = str(QtWidgets.QFileDialog.getExistingDirectory(self, "Choose File Directory...",directory=self.settings['saveLocation']))
         if fname == '':
             return
         self.settings['saveLocation'] = fname + '/'
@@ -1397,12 +1306,12 @@ class MainWin(QtGui.QMainWindow):
                 'runningScan',
                 'allSignalWaveforms',
                 'allReferenceWaveforms']
-        s = self.oscWidget.getSaveSettings()
-        s.update({
+        # s = self.oscWidget.getSaveSettings()
+        saveDict.update({
             'bcpmBG': self.boxcarRegions[0].getRegion(),
             'bcpmSB': self.boxcarRegions[1].getRegion()
         })
-        saveDict.update(s)
+        # saveDict.update(s)
 
 
         for k in badkeys:
@@ -1430,9 +1339,15 @@ class MainWin(QtGui.QMainWindow):
 
         self.settings.update(savedDict)
 
+    def createGuiElement(self, func, args):
+        if args is None:
+            func()
+        else:
+            func(args)
+
     def closeEvent(self, event):
         self.saveSettings()
-        print 'Close event handling'
+        print('Close event handling')
         self.settings['collectingScope'] = False
         self.settings['runningScan'] = False
         #Stop pausing
@@ -1440,7 +1355,7 @@ class MainWin(QtGui.QMainWindow):
             self.pausingLoop.exit()
         except:
             pass
-        
+
         try:
             self.waitingForDataLoop.exit()
         except:
@@ -1449,20 +1364,20 @@ class MainWin(QtGui.QMainWindow):
             self.scanRunningThread.join()
         except:
             pass
-        
+
         #Stop the runnign thread for collecting from scope
         try:
             self.scopeCollectionThread.join()
         except:
             pass
-        
-        
+
+
         #Restart the scope to trigger as normal.
         self.Agil.write(':RUN')
         self.close()
 
 
-class QuickSettingsDialog(QtGui.QDialog):
+class QuickSettingsDialog(QtWidgets.QDialog):
     def __init__(self, parent = None, settings=None):
         super(QuickSettingsDialog, self).__init__(parent)
         self.initUI(settings)
@@ -1542,7 +1457,7 @@ class QuickSettingsDialog(QtGui.QDialog):
         s["autoSBN"] = int(dialog.ui.tGotoSB.value())
         s["autoSBW"] = int(dialog.ui.tGotoBound.value())
 
-        return (s, result==QtGui.QDialog.Accepted)
+        return (s, result==QtWidgets.QDialog.Accepted)
 
     def calcAutoSB(self):
         # if 0 in [int(i.value()) for i in self.calcSBBoxes]:
@@ -1563,7 +1478,7 @@ class QuickSettingsDialog(QtGui.QDialog):
             self.ui.tNIRLam.setText("{:.1f}".format(10000000./val))
         self.calcAutoSB()
 
-class SettingsDialog(QtGui.QDialog):
+class SettingsDialog(QtWidgets.QDialog):
     def __init__(self, parent = None, settings=None):
         super(SettingsDialog, self).__init__(parent)
         self.initUI(settings)
@@ -1582,7 +1497,7 @@ class SettingsDialog(QtGui.QDialog):
         self.ui.tNIRLam.textAccepted.connect(self.calcNIRLam)
         # But still want to iterate over later
         self.calcSBBoxes.append(self.ui.tNIRLam)
-        
+
     def initUI(self, settings):
         self.ui = Ui_Settings()
         self.ui.setupUi(self)
@@ -1599,7 +1514,7 @@ class SettingsDialog(QtGui.QDialog):
         self.ui.tEndWN.setText(str(settings['endWN']))
         self.ui.tAverages.setText(str(settings['ave']))
 
-        
+
         self.ui.cPyroCh.insertItems(0, ['1', '2', '3', '4'])
         self.ui.cPyroCh.setCurrentIndex(settings['pyCh']-1)
         self.ui.cPMCh.insertItems(0, ['1', '2', '3', '4'])
@@ -1607,7 +1522,7 @@ class SettingsDialog(QtGui.QDialog):
 
         self.ui.tGotoBound.setText(str(settings["autoSBW"]))
         self.ui.tGotoSB.setText(str(settings["autoSBN"]))
-        
+
         self.ui.tNIRP.setText(str(settings['nir_power']))
         self.ui.tNIRLam.setText(str(settings['nir_lambda']))
         self.ui.cbPMHV.setCurrentIndex(
@@ -1634,7 +1549,7 @@ class SettingsDialog(QtGui.QDialog):
         self.ui.cbPC.setEnabled(True)
         self.ui.cbPC.setChecked(settings["doPC"])
 
-        
+
         if settings['runningScan']:
             self.ui.tAverages.setEnabled(False)
             self.ui.tStartWN.setEnabled(False)
@@ -1684,7 +1599,7 @@ class SettingsDialog(QtGui.QDialog):
         # print dialog.buttonRole(dialog.clickedButton())
         # print '-'*10
 
-        return (settings, result==QtGui.QDialog.Accepted)
+        return (settings, result==QtWidgets.QDialog.Accepted)
 
 
 
@@ -1714,14 +1629,14 @@ class SettingsDialog(QtGui.QDialog):
         else:
             self.ui.lEndWN.setText("Ending WN")
 
-class MessageDialog(QtGui.QDialog):
+class MessageDialog(QtWidgets.QDialog):
     def __init__(self, parent, message="", duration=3000):
         if isinstance(parent, str):
             message = parent
             parent = None
         super(MessageDialog, self).__init__(parent=parent)
-        layout  = QtGui.QVBoxLayout(self)
-        text = QtGui.QLabel("<font size='6'>{}</font>".format(message), self)
+        layout  = QtWidgets.QVBoxLayout(self)
+        text = QtWidgets.QLabel("<font size='6'>{}</font>".format(message), self)
         layout.addWidget(text)
         self.setLayout(layout)
         self.setModal(False)
@@ -1736,7 +1651,7 @@ class MessageDialog(QtGui.QDialog):
         try:
             dialogList.remove(self)
         except Exception as E:
-            print "ERror removing from list, ",E
+            print("ERror removing from list, ",E)
 
         super(MessageDialog, self).close()
 
@@ -1753,12 +1668,12 @@ class MessageDialog(QtGui.QDialog):
 
 def main():
     import sys
-    app = QtGui.QApplication(sys.argv)
-    ex = MainWin()
+
+
+    app = QtWidgets.QApplication(sys.argv)
+    ex = SPEXScanWin()
     sys.exit(app.exec_())
 
 
 if __name__ == '__main__':
     main()
-
-
